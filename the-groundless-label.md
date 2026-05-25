@@ -174,6 +174,19 @@ quality — you measure *conformity*, and you systematically punish whoever sits
 in the minority. That is one of the most common, least noticed ways a pipeline
 launders bias and calls it "quality control."
 
+And this is not a side-note — it is the load-bearing reason the discipline
+matters, because the failure *inverts*. An annotator who dissents thoughtfully on
+the hard cases — the one you most want to keep — accumulates "disagreements" and
+scores *worse* than one who reflexively clicks the majority. So a naive quality
+metric does not merely launder bias; it **selects against your most perceptive
+labelers and for your conformists.** Run that over hiring and retention and the
+annotator pool grooms itself toward a monoculture *before a single label ever
+trains a model.* That is the model collapse of §6 — but running one cycle
+earlier, in the **labor** rather than the data, and it is the sharper version:
+the data-side loop narrows what the model learns; the labor-side loop narrows
+who is left to disagree. Scoring quality only on decidable cells is what keeps
+the humans diverse long enough for their disagreement to reach the model at all.
+
 ---
 
 ## 5. The part nobody says out loud: you are writing a constitution

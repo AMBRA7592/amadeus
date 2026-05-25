@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below."
+title: "Ground Truth Has No Ground: treating the label as a distribution in AI data labeling"
+abstract: >-
+  An argument and a runnable toolchain for AI data labeling. For contested,
+  aesthetic, safety-relevant, and synthetic-human data there is no ground truth
+  to recover, only a distribution of human judgement to preserve. The tools keep
+  the label distribution, separate genuine human label variation from annotation
+  error, flag value forks (cohort-level divergence) and manufactured consensus,
+  and export trainer-ready soft labels plus a governance queue for decisions that
+  majority vote would otherwise resolve silently.
+type: software
+authors:
+  - family-names: Brandes
+    given-names: Amadeus
+    alias: AMBRA7592
+repository-code: "https://github.com/AMBRA7592/amadeus"
+license: MIT
+version: "1.0.0"
+date-released: "2026-05-25"
+keywords:
+  - data labeling
+  - annotation
+  - human label variation
+  - inter-annotator disagreement
+  - soft labels
+  - pluralistic alignment
+  - RLHF
+  - data governance
+references:
+  - type: article
+    title: "The Problem of Human Label Variation: On Ground Truth in Data, Modeling and Evaluation"
+    authors:
+      - family-names: Plank
+        given-names: Barbara
+    year: 2022
+    notes: "arXiv:2211.02570"
+  - type: article
+    title: "VariErr NLI: Separating Annotation Error from Human Label Variation"
+    authors:
+      - family-names: Weber-Genzel
+        given-names: Leon
+    year: 2024
+    notes: "ACL 2024; arXiv:2403.01931"
