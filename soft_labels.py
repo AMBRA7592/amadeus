@@ -77,6 +77,22 @@ def label_name(question, key, questions):
     return str(key)
 
 
+def load_prior_governance(path):
+    """Prior governance records, keyed by (item_id, question). A backlog must
+    persist: a re-run must never erase a human's owner assignment or recorded
+    decision. Without this, the demo would model the very state-loss the essay
+    condemns."""
+    prior = {}
+    if os.path.exists(path):
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    r = json.loads(line)
+                    prior[(r["item_id"], r["question"])] = r
+    return prior
+
+
 def main():
     if not os.path.exists(TRIAGE):
         raise SystemExit("triage.json not found -- run `python3 disagreement.py` first.")
@@ -129,6 +145,25 @@ def main():
         w.writerow(cols)
         for r in records:
             w.writerow([r.get(c) if c != "soft_label" else json.dumps(r["soft_label"]) for c in cols])
+    # Merge with any prior governance file so owners and decisions survive re-runs.
+    prior = load_prior_governance(OUT_GOV)
+    current_keys = set()
+    merged = []
+    for g in governance:
+        key = (g["item_id"], g["question"])
+        current_keys.add(key)
+        if key in prior:                                 # preserve the human's input;
+            p = prior[key]                               # refresh only annotation-derived fields
+            g["decision_required_from"] = p.get("decision_required_from", g["decision_required_from"])
+            g["decision_recorded"] = p.get("decision_recorded")
+            g["decision_rationale"] = p.get("decision_rationale")
+        g["status"] = "decided" if g["decision_recorded"] is not None else "pending"
+        merged.append(g)
+    for key, p in prior.items():                         # don't drop a decided record just
+        if key not in current_keys and p.get("decision_recorded") is not None:  # because the cell
+            p["status"] = "resolved_no_longer_fork"      # is no longer a fork -- keep the audit trail
+            merged.append(p)
+    governance = merged
     with open(OUT_GOV, "w") as f:
         for g in governance:
             f.write(json.dumps(g) + "\n")
@@ -149,12 +184,14 @@ def main():
     print()
     print(f"  trainer-ready jsonl  -> {os.path.relpath(OUT_JSONL, HERE)}")
     print(f"  inspection csv       -> {os.path.relpath(OUT_CSV, HERE)}")
+    pending = [g for g in governance if g.get("status") == "pending"]
+    decided = [g for g in governance if g.get("status") != "pending"]
     print(f"  governance queue     -> {os.path.relpath(OUT_GOV, HERE)}  "
-          f"({len(governance)} item{'' if len(governance) == 1 else 's'} awaiting a named owner)")
+          f"({len(pending)} pending, {len(decided)} decided -- merged with prior runs)")
 
-    if governance:
+    if pending:
         print("\n  UNRESOLVED governance decisions (do NOT train until decided):")
-        for g in governance:
+        for g in pending:
             print(f"    {g['item_id']} / {g['question']}: cohorts diverge -> {g['cohort_majorities']}")
 
     print("\n" + bar + "\n  HOW TO USE THIS DOWNSTREAM\n" + bar)

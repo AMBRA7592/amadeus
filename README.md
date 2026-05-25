@@ -33,9 +33,12 @@ value fork the pipeline would otherwise resolve silently, held open until a name
 human records a decision and a rationale.
 
 The full arc: **diagnostic → triage → trainer-ready export → governance queue.**
-Generated files (`triage.json`, `soft_labels.*`, `governance.jsonl`) are
-git-ignored; reproduce them by running the two scripts. In production you would
-*persist* `governance.jsonl` so the backlog of policy decisions stays visible.
+Generated files (`triage.json`, `soft_labels.*`) are git-ignored; reproduce them
+by running the two scripts. `governance.jsonl` is the exception in spirit: the
+exporter *merges* with any existing copy, preserving recorded decisions and owner
+assignments across runs (and keeping a decided record even if a cell is no longer
+a fork). Re-running never silently loses state — in production you persist this
+file as a living backlog of policy decisions.
 
 ### The one thing to take away
 
