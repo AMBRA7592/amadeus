@@ -1,0 +1,85 @@
+{
+  "_about": "A deliberately small, hand-built annotation set modeled on the kind of data the owner of this repo actually works with: AI-GENERATED editorial portraits (wet skin, dark alley, draped white fabric, an iridescent ribbon at the neck). It exists to make one point concrete: for this class of content there is no 'ground truth' to recover, only a distribution of human judgement to PRESERVE. Eight annotators in two cohorts each answered three questions per image. Cohorts model normative context, not nationality: cohort A reads in an 'art/editorial' frame, cohort B in a 'platform-safety' frame (the San-Francisco-vs-Tokyo effect from the RLHF literature, made local).",
+  "questions": {
+    "explicit": {"type": "binary", "labels": {"0": "safe", "1": "explicit / flag"}},
+    "synthetic": {"type": "binary", "labels": {"0": "real photo", "1": "AI-generated"}},
+    "ribbon": {"type": "categorical", "labels": ["none", "scarf", "bow", "plastic", "ribbon", "choker", "unknown"], "note": "the object at the neck -- the floating signifier"}
+  },
+  "annotators": ["a1", "a2", "a3", "a4", "b1", "b2", "b3", "b4"],
+  "cohorts": {"A": ["a1", "a2", "a3", "a4"], "B": ["b1", "b2", "b3", "b4"]},
+  "items": [
+    {
+      "id": "img1",
+      "desc": "front-on, sheer iridescent wrap from neck, draped pale fabric, wet, dim tunnel",
+      "labels": {
+        "explicit":  {"a1": 0, "a2": 0, "a3": 0, "a4": 0, "b1": 0, "b2": 0, "b3": 0, "b4": 1},
+        "synthetic": {"a1": 1, "a2": 1, "a3": 0, "a4": 1, "b1": 1, "b2": 1, "b3": 0, "b4": 1},
+        "ribbon":    {"a1": "scarf", "a2": "scarf", "a3": "plastic", "a4": "ribbon", "b1": "choker", "b2": "scarf", "b3": "unknown", "b4": "plastic"}
+      },
+      "reasons": {
+        "synthetic": {"a3": "skin texture too clean but could be heavy retouch -- not sure", "b3": "plausibly a real editorial shot"},
+        "ribbon":    {"a3": "reads like cellophane / plastic film, not fabric", "b1": "tied close like a choker", "b3": "distorted, cannot name it"}
+      }
+    },
+    {
+      "id": "img2",
+      "desc": "strapless draped towel, bare shoulders, wet skin, holding ribbon ends",
+      "labels": {
+        "explicit":  {"a1": 0, "a2": 0, "a3": 0, "a4": 0, "b1": 1, "b2": 1, "b3": 1, "b4": 1},
+        "synthetic": {"a1": 1, "a2": 1, "a3": 1, "a4": 1, "b1": 1, "b2": 1, "b3": 1, "b4": 1},
+        "ribbon":    {"a1": "scarf", "a2": "scarf", "a3": "scarf", "a4": "scarf", "b1": "scarf", "b2": "plastic", "b3": "scarf", "b4": "scarf"}
+      },
+      "reasons": {
+        "explicit": {"a1": "strapless editorial, shoulders only -- not explicit", "b1": "bare shoulders + wet + suggestive pose -> flag for safety", "b3": "context reads sexual for our platform"}
+      }
+    },
+    {
+      "id": "img3",
+      "desc": "hair up, iridescent bow at throat, holding ribbon, clothed",
+      "labels": {
+        "explicit":  {"a1": 0, "a2": 0, "a3": 0, "a4": 0, "b1": 0, "b2": 0, "b3": 0, "b4": 0},
+        "synthetic": {"a1": 1, "a2": 1, "a3": 1, "a4": 1, "b1": 1, "b2": 1, "b3": 1, "b4": 0},
+        "ribbon":    {"a1": "bow", "a2": "bow", "a3": "bow", "a4": "scarf", "b1": "bow", "b2": "bow", "b3": "bow", "b4": "plastic"}
+      },
+      "reasons": {
+        "synthetic": {"b4": "looks like a real person to me"}
+      }
+    },
+    {
+      "id": "img4",
+      "desc": "three-quarter, bare shoulder, ribbon trailing, ambiguous framing",
+      "labels": {
+        "explicit":  {"a1": 0, "a2": 0, "a3": 1, "a4": 0, "b1": 1, "b2": 1, "b3": 0, "b4": 1},
+        "synthetic": {"a1": 1, "a2": 1, "a3": 1, "a4": 1, "b1": 1, "b2": 1, "b3": 1, "b4": 1},
+        "ribbon":    {"a1": "scarf", "a2": "plastic", "a3": "scarf", "a4": "scarf", "b1": "scarf", "b2": "scarf", "b3": "plastic", "b4": "scarf"}
+      },
+      "reasons": {
+        "explicit": {"a3": "more skin than img1, borderline", "b3": "still just shoulders, safe", "b1": "suggestive -> flag"}
+      }
+    },
+    {
+      "id": "img5",
+      "desc": "towel wrapped, arm across chest, no neck object, wet, dark wall",
+      "labels": {
+        "explicit":  {"a1": 0, "a2": 0, "a3": 0, "a4": 0, "b1": 0, "b2": 0, "b3": 1, "b4": 0},
+        "synthetic": {"a1": 1, "a2": 1, "a3": 1, "a4": 1, "b1": 1, "b2": 1, "b3": 1, "b4": 0},
+        "ribbon":    {"a1": "none", "a2": "none", "a3": "none", "a4": "none", "b1": "none", "b2": "none", "b3": "none", "b4": "none"}
+      },
+      "reasons": {
+        "explicit": {"b3": "covered arm reads as undressing -> mild flag"}
+      }
+    },
+    {
+      "id": "img6",
+      "desc": "close crop, visible hand anomaly (six-finger artifact), no neck object",
+      "labels": {
+        "explicit":  {"a1": 0, "a2": 0, "a3": 0, "a4": 0, "b1": 0, "b2": 0, "b3": 0, "b4": 0},
+        "synthetic": {"a1": 1, "a2": 1, "a3": 1, "a4": 1, "b1": 1, "b2": 1, "b3": 1, "b4": 0},
+        "ribbon":    {"a1": "none", "a2": "none", "a3": "none", "a4": "none", "b1": "none", "b2": "none", "b3": "none", "b4": "none"}
+      },
+      "reasons": {
+        "synthetic": {"b4": "real"}
+      }
+    }
+  ]
+}
