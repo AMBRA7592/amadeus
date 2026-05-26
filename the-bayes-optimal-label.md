@@ -1,14 +1,14 @@
-The Bayes-Optimal Label
+# The Bayes-Optimal Label
 
-A label is not ground truth — it is a Bayes action: an aggregation rule applied to evidence under a declared cost model
+### A label is not ground truth — it is a Bayes action: an aggregation rule applied to evidence under a declared cost model
 
 ---
 
-> This note shows that hard labels are zero-entropy special cases of label
+> *This note shows that hard labels are zero-entropy special cases of label
 > distributions, that log-loss training is Bayes-optimal when it predicts the
 > full conditional label distribution, that 0–1 loss and other cost models
 > produce different optimal actions, and that majority vote should be treated as
-> one Bayes action under a declared cost model — not as ground truth.
+> one Bayes action under a declared cost model — not as ground truth.*
 
 The other documents here argue that "ground truth" is contestable
 ([the argument](the-groundless-label.md)), that no aggregation rule is neutral
@@ -23,7 +23,7 @@ is. [`bayes_optimal.py`](bayes_optimal.py) runs every line below against
 
 ---
 
-Lemma 1 — a hard label is a zero-entropy point on the simplex
+## Lemma 1 — a hard label is a zero-entropy point on the simplex
 
 A distribution over `k` labels is a point in the `(k−1)`-simplex. A *hard* label
 is the special case that sits on a vertex: a one-hot vector, entropy 0. So
@@ -36,7 +36,7 @@ and tells it the cloud was never there.
 
 ---
 
-Theorem 1 — under log loss, the Bayes-optimal prediction is `P(Y|X=x)`
+## Theorem 1 — under log loss, the Bayes-optimal prediction is `P(Y|X=x)`
 
 Cross-entropy decomposes exactly:
 
@@ -58,7 +58,7 @@ not the mode.
 
 ---
 
-Theorem 2 — under 0–1 loss, the Bayes-optimal action is `argmax q`
+## Theorem 2 — under 0–1 loss, the Bayes-optimal action is `argmax q`
 
 Commit to a single class `a` and your expected 0–1 loss is `1 − q[a]`, minimized
 at `a = argmax q`. On `img1 / ribbon` that is `scarf`, expected loss `0.625`.
@@ -69,7 +69,7 @@ truth" smuggles the second into the first and loses the distinction.
 
 ---
 
-Theorem 3 — majority vote collapses uncertainty
+## Theorem 3 — majority vote collapses uncertainty
 
 Three real cells on the `explicit` question: `8–0` (`H = 0`), `7–1`
 (`H = 0.544`), `4–4` (`H = 1.0`). Three different epistemic states. Majority vote
@@ -79,7 +79,7 @@ to trust the label. `51/49` and `99/1` ship identically and mean opposite things
 
 ---
 
-Theorem 4 — empirical frequencies are the multinomial MLE
+## Theorem 4 — empirical frequencies are the multinomial MLE
 
 Under exchangeable annotator sampling, `q̂ = counts / n` is the maximum-likelihood
 estimate of the multinomial: the log-likelihood of the observed counts is
@@ -93,7 +93,7 @@ trusts a tally.
 
 ---
 
-Theorem 5 — a hard label is a Bayes action under a declared cost model
+## Theorem 5 — a hard label is a Bayes action under a declared cost model
 
 This is the decisive one. Given a distribution `q`, an action set `A`, and a cost
 matrix `C(a, k)`, the Bayes action is
@@ -102,7 +102,7 @@ matrix `C(a, k)`, the Bayes action is
     a* = argmin_a  Σ_k  C(a, k) · q_k.
 ```
 
-Majority vote is the special case where the actions *are* the classes and
+**Majority vote is the special case** where the actions *are* the classes and
 `C(a, k) = 1[a ≠ k]` (symmetric 0–1 loss). It is one cell of a much larger table.
 Now add a single action everyone actually has — **review** (abstain / hold /
 escalate), at a flat cost `r`. The Bayes action becomes *review* exactly when no
@@ -126,7 +126,7 @@ sometimes it is review, and a cost model tells you which, on the record.
 
 ---
 
-Theorem 6 — same distribution, different evidentiary strength
+## Theorem 6 — same distribution, different evidentiary strength
 
 Two cells with counts `[1, 1]` and `[500, 500]` have the *same* empirical
 distribution, `[0.5, 0.5]`. They are not the same evidence. The Dirichlet
@@ -147,7 +147,7 @@ fuses into one:
 
 ---
 
-The four objects — and why this is the spine
+## The four objects — and why this is the spine
 
 A label is not ground truth. **A label is the output of an aggregation rule
 applied to evidence under a task definition.** Decomposed, it is four objects,
@@ -181,7 +181,7 @@ cost matrix, exactly where the regime ends.
 
 ---
 
-Sources from the wild
+### Sources from the wild
 
 - L. J. Savage, *The Foundations of Statistics*, 1954 (acts, consequences, and
   the Bayes action minimizing expected loss).
