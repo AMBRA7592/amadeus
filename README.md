@@ -1,14 +1,16 @@
 # Ground truth has no ground
 
+> **Majority vote is not a neutral way to combine human judgement. It is a
+> specific, contestable rule that silently makes governance decisions and ships
+> them into the model as if they were facts.**
+
 A small, self-contained argument — with a runnable proof and a trainer-ready
 export — about the most consequential and least examined act in AI data
-labeling: collapsing many human judgements into one "ground truth" via majority
-vote.
-
-**The claim, in one line:** for contested / aesthetic / safety / synthetic-human
-data, there is no ground truth to *recover* — only a distribution of human
-judgement to *preserve* — and the disagreement that pipelines are built to
-delete is usually the most valuable signal in the set.
+labeling: collapsing many human judgements into one "ground truth." For
+contested / aesthetic / safety / synthetic-human data there is no ground truth
+to *recover* — only a distribution of human judgement to *preserve* — and the
+disagreement that pipelines are built to delete is usually the most valuable
+signal in the set.
 
 ### What's here
 
@@ -42,8 +44,6 @@ file as a living backlog of policy decisions.
 
 ### The one thing to take away
 
-Majority vote is not a neutral way to combine human judgement. It is a specific,
-contestable rule that silently makes governance decisions and ships them into
-the model as if they were facts. The honest deliverable of high-stakes labeling
-is not a label. It is the **distribution + the reasons + a record of who got
-out-voted** — and, for genuine value forks, a named human who owns the call.
+So the honest deliverable of high-stakes labeling is not a label. It is the
+**distribution + the reasons + a record of who got out-voted** — and, for
+genuine value forks, a named human who owns the call.
