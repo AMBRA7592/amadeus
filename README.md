@@ -17,8 +17,10 @@ signal in the set.
 | file | what it is |
 |------|------------|
 | [`the-groundless-label.md`](the-groundless-label.md) | The argument. Read this first. ~10 min, grounded in current research (HLV, VariErr, pluralistic alignment, model collapse). |
+| [`the-aggregation-theorem.md`](the-aggregation-theorem.md) | **The proof the argument didn't claim.** Social choice theory (Arrow 1951, May 1952, Condorcet 1785) already settled the thesis — and drew the exact line the triage draws by hand. Companion to the argument. |
 | `disagreement.py` | **Diagnostic.** Instead of majority vote: keeps the distribution, separates genuine *variation* from likely *error*, flags value forks and manufactured consensus, prices what the collapse to one label destroys. Writes `triage.json`. |
 | `soft_labels.py` | **Operational.** Turns the triage into things a trainer consumes: per-cell soft labels + entropy-derived weights (`soft_labels.jsonl`), and a governance queue of value forks awaiting a named human owner (`governance.jsonl`). |
+| `aggregation.py` | **Proof.** Runs Arrow, May, and the Condorcet Jury Theorem against the same `data/labels.json`: the ribbon's "fact" flips with the aggregation rule, both 4–4 forks are decided by alphabetical order, and "get more labels" is shown to backfire under a shared norm. |
 | `data/labels.json` | A tiny hand-built annotation set modeled on the scenario this repo grew out of: AI-generated editorial portraits, 8 annotators in 2 normative cohorts, 3 questions each. |
 
 ### Run it (two steps, zero dependencies, Python 3.8+)
@@ -26,6 +28,7 @@ signal in the set.
 ```bash
 python3 disagreement.py     # diagnose -> triage.json
 python3 soft_labels.py      # operationalize -> soft_labels.jsonl + governance.jsonl
+python3 aggregation.py      # (optional) the theorem under the thesis: social choice theory on the same data
 ```
 
 The first prints a per-cell triage and a "bill" — how many bits of human
