@@ -8,7 +8,9 @@ abstract: >-
   the label distribution, separate genuine human label variation from annotation
   error, flag value forks (cohort-level divergence) and manufactured consensus,
   and export trainer-ready soft labels plus a governance queue for decisions that
-  majority vote would otherwise resolve silently.
+  majority vote would otherwise resolve silently. A JSON Schema specifies the
+  resolution record each aggregation act produces: its inputs, rule, measures,
+  authority, disposition, and replay hash.
 type: software
 authors:
   - family-names: Brandes
@@ -16,7 +18,7 @@ authors:
     alias: AMBRA7592
 repository-code: "https://github.com/releasecontrol/groundless-truth"
 license: MIT
-version: "1.1.0"
+version: "1.2.0"
 date-released: "2026-05-26"
 keywords:
   - data labeling

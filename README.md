@@ -28,6 +28,7 @@ signal in the set.
 | [`the-frustrated-label.md`](the-frustrated-label.md) | **The physics one layer down.** A crowd has no ground truth for the same reason a spin glass has no ground state (Parisi, Nobel 2021). The soft label is a Gibbs state at finite temperature; majority vote is the T→0 quench; model collapse is the second law applied to values. |
 | [`the-topological-label.md`](the-topological-label.md) | **The shape underneath both.** Aggregation is possible iff the preference space is contractible (Chichilnisky). A reward model is a potential a value fork forbids (it has curl: H¹≠0). Baryshnikov: Arrow = this hole. Closes the triptych. |
 | [`the-geometric-label.md`](the-geometric-label.md) | **The constructive turn (not a fourth impossibility).** Given you keep the cloud — *which* cloud? On the curved (Fisher) simplex the KL, Fisher–Rao, and Wasserstein centres disagree, and cross-entropy silently picks one. A computable "geometry gap" + a decision: choose the loss to match the label's semantics. |
+| [`schema/resolution_record.schema.json`](schema/resolution_record.schema.json) | **The record — what the whole argument produces.** A canonical, replayable record of one aggregation act: input judgements + reasons, the aggregation/tie-break rule, the loss/geometry, the measures (entropy, fork status, curl, geometry gap), the policy version + authority + owner, the disposition + conditions, and a replay hash. Every field is emitted by a tool above; the schema names the object they were always describing. |
 
 ### Run it (two steps, zero dependencies, Python 3.8+)
 
@@ -72,3 +73,6 @@ bill, the frustration index, the geometry gap) rather than the measurement.
 So the honest deliverable of high-stakes labeling is not a label. It is the
 **distribution + the reasons + a record of who got out-voted** — and, for
 genuine value forks, a named human who owns the call.
+
+That record has a shape: [`schema/resolution_record.schema.json`](schema/resolution_record.schema.json) — what an
+aggregation act looks like when it is written down on purpose, replayable and owned.

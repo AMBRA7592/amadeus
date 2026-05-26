@@ -33,3 +33,4 @@ jobs:
           python3 frustration.py
           python3 topology.py
           python3 geometry.py
+          python3 -c "import json; json.load(open('schema/resolution_record.schema.json'))"  # schema stays valid JSON

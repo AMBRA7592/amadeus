@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/releasecontrol/groundless-truth/main/schema/resolution_record.schema.json",
+  "title": "Resolution Record",
+  "description": "The canonical record of a single aggregation act: what plural human judgement was collapsed (or refused), under which rule, by whose authority, with what conditions, and how to replay it. This is the object the rest of the repository argues every 'ground truth' actually is. Each field is produced by a tool here: the input/measures by disagreement.py and the foundations (aggregation.py, frustration.py, topology.py, geometry.py); the authority/disposition by the governance queue in soft_labels.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["item", "question", "input", "rule", "measures", "authority", "disposition", "provenance"],
+  "properties": {
+    "item": {
+      "type": "string",
+      "description": "Identifier of the item being judged."
+    },
+    "question": {
+      "type": "string",
+      "description": "The axis being labelled (e.g. 'explicit', 'synthetic', 'ribbon')."
+    },
+    "input": {
+      "type": "object",
+      "description": "The plural judgement before any collapse. This is the thing 'ground truth' destroys.",
+      "additionalProperties": false,
+      "required": ["judgments", "cohorts", "n_annotators"],
+      "properties": {
+        "judgments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["annotator", "label"],
+            "properties": {
+              "annotator": { "type": "string" },
+              "label": { "type": "string" },
+              "reason": {
+                "type": "string",
+                "description": "Free-text rationale. The single field that lets anyone later separate genuine variation from error (VariErr); a dissent without one is unfalsifiable."
+              }
+            }
+          }
+        },
+        "cohorts": {
+          "type": "object",
+          "description": "Named normative groups, each a list of annotator ids. Cohort divergence is what distinguishes a value fork from scattered noise.",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "n_annotators": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "description": "The contestable choices that turn the judgement into an output. Naming them is the whole point: a result that hides its rule is hiding a vote.",
+      "additionalProperties": false,
+      "required": ["aggregation", "tie_break", "loss_geometry"],
+      "properties": {
+        "aggregation": {
+          "type": "string",
+          "description": "How many judgements became the output.",
+          "examples": ["majority", "plurality", "soft_label", "random_dictator", "escalate"]
+        },
+        "tie_break": {
+          "type": ["string", "null"],
+          "description": "How an exact tie was resolved, or null if none was needed / the cell was escalated. Note that any non-null value here is an un-axiomatised casting vote (May's theorem is silent at a tie).",
+          "examples": ["alphabetical", "pool_prior", "named_owner", null]
+        },
+        "loss_geometry": {
+          "type": "string",
+          "description": "The training geometry the soft label will be consumed under. Cross-entropy = the arithmetic centre; an order-aware loss = the Wasserstein centre. The default is never neutral on a structured axis.",
+          "examples": ["cross_entropy/arithmetic", "wasserstein/order_aware", "none/escalated"]
+        }
+      }
+    },
+    "measures": {
+      "type": "object",
+      "description": "The quantities the tools compute about this cell. They say how groundless it is, and in which way.",
+      "additionalProperties": false,
+      "required": ["entropy_bits", "fork_status"],
+      "properties": {
+        "entropy_bits": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Shannon entropy of the judgement distribution: the bits a collapse to one label would destroy."
+        },
+        "fork_status": {
+          "type": "string",
+          "enum": ["none", "variation", "no_ground", "value_fork", "review"],
+          "description": "The triage verdict. 'none' = a fact (collapse is honest); 'value_fork' = cohorts coherently diverge (a governance decision, not a label)."
+        },
+        "manufactured_consensus": {
+          "type": "boolean",
+          "description": "True if a single label would be stamped while a coherent, sizeable minority saw otherwise."
+        },
+        "curl": {
+          "type": ["number", "null"],
+          "description": "Circulation of the pairwise-preference field (HodgeRank). Non-zero = no consistent ranking/reward exists; the disagreement is a cycle, not a spread. Null where undefined (e.g. a binary axis)."
+        },
+        "geometry_gap": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Total-variation distance between the centres a trainer might use (e.g. arithmetic vs. geometric). Large = 'the soft label' is underspecified until a geometry is named. Null where unstructured."
+        }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "description": "Who is accountable for the rule choices above. The difference between a default made in the dark and a decision someone owns.",
+      "additionalProperties": false,
+      "required": ["policy_version", "decided_by"],
+      "properties": {
+        "policy_version": {
+          "type": "string",
+          "description": "The versioned policy under which the rule was applied, so a disposition can be re-evaluated when the policy changes."
+        },
+        "decided_by": {
+          "type": "string",
+          "enum": ["automated", "named_owner"],
+          "description": "Whether an aggregation function or a named human made the call. Value forks must be 'named_owner'."
+        },
+        "owner": {
+          "type": ["string", "null"],
+          "description": "The named human accountable, required when decided_by = 'named_owner'."
+        }
+      }
+    },
+    "disposition": {
+      "type": "object",
+      "description": "What was actually done with the cell, and under what conditions it stands.",
+      "additionalProperties": false,
+      "required": ["outcome", "conditions"],
+      "properties": {
+        "outcome": {
+          "type": "string",
+          "description": "The result of the act.",
+          "examples": ["collapsed:safe", "soft_label", "escalated", "decided:flag", "held_for_review"]
+        },
+        "conditions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The conditions under which the disposition is valid (e.g. 'excluded from training until decided', 'revisit if cohort balance changes')."
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Enough to trust and replay the record.",
+      "additionalProperties": false,
+      "required": ["timestamp", "replay_hash"],
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "replay_hash": {
+          "type": "string",
+          "description": "Content hash over {input, rule, policy_version} sufficient to reproduce this disposition. Changing any input or rule changes the hash, so a record cannot silently drift from what produced it."
+        },
+        "produced_by": {
+          "type": "string",
+          "description": "Tool(s) and version that emitted the record."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "item": "img2",
+      "question": "explicit",
+      "input": {
+        "n_annotators": 8,
+        "cohorts": { "A": ["a1", "a2", "a3", "a4"], "B": ["b1", "b2", "b3", "b4"] },
+        "judgments": [
+          { "annotator": "a1", "label": "safe" },
+          { "annotator": "a2", "label": "safe" },
+          { "annotator": "a3", "label": "safe" },
+          { "annotator": "a4", "label": "safe" },
+          { "annotator": "b1", "label": "flag", "reason": "bare shoulders + wet fabric read suggestive under our market's norm" },
+          { "annotator": "b2", "label": "flag" },
+          { "annotator": "b3", "label": "flag" },
+          { "annotator": "b4", "label": "flag" }
+        ]
+      },
+      "rule": {
+        "aggregation": "escalate",
+        "tie_break": null,
+        "loss_geometry": "none/escalated"
+      },
+      "measures": {
+        "entropy_bits": 1.0,
+        "fork_status": "value_fork",
+        "manufactured_consensus": false,
+        "curl": null,
+        "geometry_gap": 0.5
+      },
+      "authority": {
+        "policy_version": "safety-2026.05",
+        "decided_by": "named_owner",
+        "owner": "<unassigned — pending>"
+      },
+      "disposition": {
+        "outcome": "escalated",
+        "conditions": [
+          "held out of the training pool until a named owner records a decision and a rationale",
+          "the recorded decision must state which cohort's norm the model will carry"
+        ]
+      },
+      "provenance": {
+        "timestamp": "2026-05-26T16:20:00Z",
+        "replay_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "produced_by": "disagreement.py + soft_labels.py (groundless-truth v1.2.0)"
+      }
+    }
+  ]
+}
