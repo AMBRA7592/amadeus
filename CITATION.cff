@@ -14,7 +14,7 @@ authors:
   - family-names: Brandes
     given-names: Amadeus
     alias: AMBRA7592
-repository-code: "https://github.com/AMBRA7592/amadeus"
+repository-code: "https://github.com/releasecontrol/groundless-truth"
 license: MIT
 version: "1.0.0"
 date-released: "2026-05-25"
