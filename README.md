@@ -14,11 +14,21 @@ to *recover* — only a distribution of human judgement to *preserve* — and th
 disagreement that pipelines are built to delete is usually the most valuable
 signal in the set.
 
+**The spine.** A label is not ground truth; it is the output of an aggregation
+rule applied to evidence under a task definition — four objects, not one: the
+**distribution** (statistical), the **hard label** (a decision), the
+**aggregation rule** (governance), and the **record** (auditable).
+[`the-bayes-optimal-label.md`](the-bayes-optimal-label.md) proves this from
+decision theory, and the rest of the repo is those four objects examined closely:
+the tools produce the distribution and the decision, the four foundations dissect
+why the rule is never neutral, and the schema is the record.
+
 ### What's here
 
 | file | what it is |
 |------|------------|
 | [`the-groundless-label.md`](the-groundless-label.md) | The argument. Read this first. ~10 min, grounded in current research (HLV, VariErr, pluralistic alignment, model collapse). |
+| [`the-bayes-optimal-label.md`](the-bayes-optimal-label.md) | **The decision-theoretic spine.** A label is a Bayes action, not ground truth: under log loss the optimal prediction is the whole distribution (Thm 1); under 0–1 loss it is the mode (Thm 2); under a cost model with a *review* option, the optimal action at a value fork is review, not a label (Thm 5). Concedes majority vote is correct in its one regime and proves where it ends. Read after the argument. |
 | `disagreement.py` | **Diagnostic.** Instead of majority vote: keeps the distribution, separates genuine *variation* from likely *error*, flags value forks and manufactured consensus, prices what the collapse to one label destroys. Writes `triage.json`. |
 | `soft_labels.py` | **Operational.** Turns the triage into things a trainer consumes: per-cell soft labels + entropy-derived weights (`soft_labels.jsonl`), and a governance queue of value forks awaiting a named human owner (`governance.jsonl`). |
 | `aggregation.py` | **Proof.** Runs Arrow, May, and the Condorcet Jury Theorem against the same `data/labels.json`: the ribbon's "fact" flips with the aggregation rule, both 4–4 forks are decided by alphabetical order, and "get more labels" is shown to backfire under a shared norm. |
@@ -37,6 +47,7 @@ signal in the set.
 ```bash
 python3 disagreement.py     # diagnose -> triage.json
 python3 soft_labels.py      # operationalize -> soft_labels.jsonl + governance.jsonl
+python3 bayes_optimal.py    # (optional) the decision-theoretic spine: a label is a Bayes action, not ground truth
 python3 aggregation.py      # (optional) the theorem under the thesis: social choice theory on the same data
 python3 frustration.py      # (optional) the physics under the thesis: the label as a frustrated (spin-glass) system
 python3 topology.py         # (optional) the shape under the thesis: aggregation fails iff preference space has a hole
