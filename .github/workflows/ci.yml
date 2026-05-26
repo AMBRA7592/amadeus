@@ -1,0 +1,35 @@
+name: proofs
+
+# Low-cost insurance: every push and PR re-runs all six zero-dependency
+# scripts on the oldest and a current Python, so an outside contribution that
+# breaks one of the proofs fails visibly instead of landing quietly.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  run:
+    name: run all proofs (py ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04        # validates the README's "Python 3.8+" claim
+            python: "3.8"
+          - os: ubuntu-latest
+            python: "3.12"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Diagnostic, exporter, and the four foundational proofs
+        run: |
+          python3 disagreement.py   # writes triage.json
+          python3 soft_labels.py    # consumes triage.json
+          python3 aggregation.py
+          python3 frustration.py
+          python3 topology.py
+          python3 geometry.py
