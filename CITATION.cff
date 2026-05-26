@@ -10,7 +10,10 @@ abstract: >-
   and export trainer-ready soft labels plus a governance queue for decisions that
   majority vote would otherwise resolve silently. A JSON Schema specifies the
   resolution record each aggregation act produces: its inputs, rule, measures,
-  authority, disposition, and replay hash.
+  authority, disposition, and replay hash. A decision-theoretic spine frames the
+  label as a Bayes action -- an aggregation rule applied to evidence under a cost
+  model -- decomposing it into four objects: the distribution, the decision, the
+  rule, and the record.
 type: software
 authors:
   - family-names: Brandes
@@ -18,7 +21,7 @@ authors:
     alias: AMBRA7592
 repository-code: "https://github.com/releasecontrol/groundless-truth"
 license: MIT
-version: "1.2.0"
+version: "1.3.0"
 date-released: "2026-05-26"
 keywords:
   - data labeling
