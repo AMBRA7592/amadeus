@@ -4,12 +4,17 @@
 
 ---
 
-Look again at the images you're working with. Hold your eye on one thing: the
-iridescent ribbon at the neck. It is the same "object" across the set, and yet
-in every frame it is a different thing. In one it is gauze, in another wet
-cellophane, in another a thin choker, in another a bow already coming undone.
-The generator that made these images could not decide what it was either — it
-re-invents the ribbon every time it is asked.
+> **Majority vote is not a neutral way to combine human judgement. It is a
+> specific, contestable rule that silently makes governance decisions and ships
+> them into the model as if they were facts.**
+
+Picture a set of AI-generated editorial portraits — wet skin, a dark passage, a
+woman draped in pale fabric. Hold your eye on one thing: the iridescent ribbon
+at the neck. It is the same "object" across the frames, and yet in every one it
+is a different thing. In one it is gauze, in another wet cellophane, in another
+a thin choker, in another a bow already coming undone. The generator that made
+these images could not decide what it was either — it re-invents the ribbon
+every time it is asked.
 
 Now imagine handing this set to eight annotators and asking a question that
 sounds utterly routine: *what is the object at the neck?* You will get back
@@ -63,9 +68,9 @@ is simply false. And the label pipeline is built on top of it.
 
 ---
 
-## 2. Your images are the proof
+## 2. These images are the proof
 
-The set you're working on is, by accident, a near-perfect instrument for seeing
+This set is, by accident, a near-perfect instrument for seeing
 this. Take the four questions a labeler would actually be asked, and notice that
 *each one is groundless in a different way*:
 
@@ -224,7 +229,7 @@ decide it in the dark.
 
 ## 6. The recursive sting
 
-One more layer, because it closes the loop back to your images. These are
+One more layer, because it closes the loop back to those portraits. They are
 *synthetic* humans. Increasingly, synthetic images like them will be labeled by
 humans, and those labels will train the *next* generator. Now combine that with
 everything above: if every contested judgement — what's beautiful, what's
@@ -278,7 +283,7 @@ is a small, concrete change in what counts as a *finished* label:
 
 ## Coda
 
-The ribbon in your images can't hold still because there was never a real
+The ribbon in these images can't hold still because there was never a real
 ribbon — only a generator improvising a sign. Most of the hardest, most
 valuable data you will ever label is exactly like that ribbon: a question with
 no dirt to drive to. The profession's habit is to force it still anyway, call
