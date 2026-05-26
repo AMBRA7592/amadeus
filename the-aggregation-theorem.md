@@ -176,17 +176,23 @@ ship.** No model that aggregates three-or-more-way diverse human values can
 satisfy all of Arrow's axioms, any more than your label pipeline can — because
 *it is the same operation*, performed in float32.
 
-This is why "pluralistic alignment" became a real research program and not a
-slogan: a 2024 position paper by Conitzer, Procaccia, and colleagues argues that
-**social choice theory should be the formal foundation for aligning AI to
-diverse human feedback** — precisely because preference aggregation is what RLHF
-*is*, and the impossibility results therefore apply to the aligned model itself.
-Read against the companion essay, the conclusion is stark: every aligned model
-embeds a specific, non-neutral resolution of Arrow's impossibility — a choice of
-which axiom to break — and ships it as if it were arithmetic. The "unelected
-legislator" at the annotation desk has a counterpart in the trained model: an
-**Arrovian dictator, installed by default**, because no one chose the rule on
-purpose.
+The bridge from labels to the systems we ship is not new, and saying so plainly
+is the point. A **2024 line of work already makes it explicit**: Conitzer,
+Procaccia, and colleagues argue that social choice theory *should be* the formal
+foundation for aligning AI to diverse human feedback, and Ge et al. carry the
+social-choice axioms directly into RLHF reward learning. So the contribution
+here is not the observation that alignment is aggregation — the literature got
+there. It is **operationalization**: turning a known impossibility into a
+runnable governance artifact — a triage that names each contested cell, prices
+the bits a collapse destroys, and routes every value fork to a named owner
+instead of an aggregation default. Seen this way, data labeling and model
+alignment are not "the same problem"; they **share the same irreducible
+primitive — the consequential aggregation of plural judgement under a
+non-neutral rule** — and Arrow binds both. Every aligned model still embeds a
+specific, non-neutral resolution of Arrow's impossibility, a choice of which
+axiom to break; the "unelected legislator" at the annotation desk has a
+counterpart in the trained model, an **Arrovian dictator installed by default**.
+The machinery in this repo exists to elect it on purpose.
 
 ---
 
@@ -254,3 +260,6 @@ vote would land. It was one layer down, in the distribution. **Keep the cloud.**
 - V. Conitzer, A. Procaccia, et al., *Social Choice Should Guide AI Alignment in
   Dealing with Diverse Human Feedback*, ICML 2024 (the aggregation a reward model
   performs is a social-welfare function, and inherits the impossibilities).
+- L. Ge, D. Halpern, E. Micha, A. D. Procaccia, et al., *Axioms for AI Alignment
+  from Human Feedback*, NeurIPS 2024 (social-choice axioms carried directly into
+  RLHF reward learning).

@@ -54,6 +54,19 @@ assignments across runs (and keeping a decided record even if a cell is no longe
 a fork). Re-running never silently loses state — in production you persist this
 file as a living backlog of policy decisions.
 
+### What this does not prove
+
+The dataset here is **illustrative, not empirical** — six images × three
+questions, eight hand-built annotators in two designed cohorts. It exists to make
+the mechanisms legible and the scripts runnable end-to-end, not to estimate how
+often value forks, manufactured consensus, or geometry gaps occur in production.
+The four foundational results (Arrow/May/Condorcet, the spin-glass mapping,
+Chichilnisky, the information-geometry centres) are **mathematical**: they show
+these failures *must* arise wherever plural judgement is aggregated under a
+non-neutral rule — not that they are frequent in your data. That last question is
+empirical, and this repo ships the instruments to measure it (the disagreement
+bill, the frustration index, the geometry gap) rather than the measurement.
+
 ### The one thing to take away
 
 So the honest deliverable of high-stakes labeling is not a label. It is the
