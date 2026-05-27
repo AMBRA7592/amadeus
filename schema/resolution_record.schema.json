@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/releasecontrol/groundless-truth/main/schema/resolution_record.schema.json",
   "title": "Resolution Record",
-  "description": "The canonical record of a single aggregation act: what plural human judgement was collapsed (or refused), under which rule, by whose authority, with what conditions, and how to replay it. This is the object the rest of the repository argues every 'ground truth' actually is. Each field is produced by a tool here: the input/measures by disagreement.py and the foundations (aggregation.py, frustration.py, topology.py, geometry.py); the authority/disposition by the governance queue in soft_labels.py.",
+  "description": "The canonical record of a single aggregation act: what plural human judgement was collapsed (or refused), under which rule, by whose authority, with what conditions, and how to replay it. This is the object the rest of the repository argues every 'ground truth' actually is. Most fields are produced by the tools here: the inputs and measures by disagreement.py and the foundations (aggregation.py, frustration.py, topology.py, geometry.py); the authority and disposition by the governance queue in soft_labels.py. The provenance fields (timestamp, replay_hash, produced_by) are the operational record attached when the decision is logged, not emitted by any script.",
   "type": "object",
   "additionalProperties": false,
   "required": ["item", "question", "input", "rule", "measures", "authority", "disposition", "provenance"],
