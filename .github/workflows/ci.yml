@@ -1,6 +1,6 @@
 name: proofs
 
-# Low-cost insurance: every push and PR re-runs all six zero-dependency
+# Low-cost insurance: every push and PR re-runs all seven zero-dependency
 # scripts on the oldest and a current Python, so an outside contribution that
 # breaks one of the proofs fails visibly instead of landing quietly.
 
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: Diagnostic, exporter, and the four foundational proofs
+      - name: Diagnostic, exporter, the spine, and the four foundations
         run: |
           python3 disagreement.py   # writes triage.json
           python3 soft_labels.py    # consumes triage.json
