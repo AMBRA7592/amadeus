@@ -164,6 +164,7 @@ def coupling_section(ds):
     print("  consensus, then find the ground state -- the labeling that best satisfies")
     print("  the crowd. Two questions, two phases (and sections 1 & 3 show the third):\n")
     cohorts = ds["cohorts"]
+    findings = {}
     for q in ("explicit", "synthetic"):
         J, anns = coupling(ds, q)
         blocs, frust, total = ground_state(J, anns)
@@ -173,10 +174,15 @@ def coupling_section(ds):
         smallest = min(len(b) for b in blocs)
         if recovers and rel < 0.10:
             kind = "ANTIFERROMAGNET (two opposed domains -> two ground states -> a VALUE FORK)"
+            phase = "value_fork"
         elif smallest <= 1 or rel > 0.15:
             kind = "FERROMAGNET (one consensus ground state, plus a frustrated impurity)"
+            phase = "consensus_with_dissent"
         else:
             kind = "SPIN GLASS (many incongruent ground states)"
+            phase = "disordered"
+        findings[q] = {"phase": phase, "recovers": recovers, "blocs": blocs,
+                       "frustration": rel}
         print(f"  {q}:")
         print(f"     ground state -> {blocs}")
         print(f"     residual frustration {frust:.2f}/{total:.2f} = {rel*100:.0f}%   [{kind}]")
@@ -184,14 +190,27 @@ def coupling_section(ds):
             print(f"     ^ this bipartition was recovered from the votes alone -- and it is")
             print(f"       exactly the two cohorts. The data revealed its own pure states.")
         else:
+            dissenters = min(blocs, key=lambda b: (len(b), b))
             print(f"     ^ the minimum-energy split is forced and high-frustration: really one")
-            print(f"       consensus bloc plus dissenters (here b4 calls it 'real'), not two camps.")
+            print(f"       consensus bloc plus scattered dissent ({', '.join(dissenters)}), not two camps.")
         print()
-    print("  The contested question orders into two low-frustration domains: two ground")
-    print("  states, no single truth -- and the domains reconstruct the two normative")
-    print("  cohorts without ever being told them. The consensus question supports no")
-    print("  coherent two-domain order: it has one ground state (a fact) plus noise.")
-    print("  'No ground truth' = 'no unique ground state'.")
+    explicit = findings.get("explicit", {})
+    synthetic = findings.get("synthetic", {})
+    if explicit.get("phase") == "value_fork" and explicit.get("recovers"):
+        print("  On these data the contested question orders into two low-frustration")
+        print("  domains that reconstruct the two named cohorts without being given them.")
+    else:
+        print("  On these data the contested question does not cleanly recover the two")
+        print("  named cohorts; the output above is the result, not a hardcoded story.")
+    if synthetic.get("phase") == "consensus_with_dissent":
+        dissenters = min(synthetic["blocs"], key=lambda b: (len(b), b))
+        print("  The consensus question supports no clean two-cohort order: it has one")
+        print(f"  dominant bloc plus scattered dissent ({', '.join(dissenters)}).")
+    else:
+        print("  The consensus question's computed phase is reported above; no")
+        print("  ferromagnetic conclusion is inserted unless the diagnostic supports it.")
+    print("  In this diagnostic, 'no unique ground state' is evidence to preserve the")
+    print("  plurality of states rather than silently force a single label.")
 
 
 # --------------------------------------------------------------------------- #
