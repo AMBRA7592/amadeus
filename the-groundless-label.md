@@ -71,8 +71,9 @@ is simply false. And the label pipeline is built on top of it.
 ## 2. These images are the proof
 
 This set is, by accident, a near-perfect instrument for seeing
-this. Take the four questions a labeler would actually be asked, and notice that
-*each one is groundless in a different way*:
+this. Take four questions a labeler might be asked — the first three are in the
+demonstrator; the fourth is illustrative only — and notice that *each one is
+groundless in a different way*:
 
 - **"Is this a real person?"** There is no ground because the person does not
   exist. The image is synthetic, but it is built by interpolating millions of
@@ -172,12 +173,15 @@ Same dissenting label — `real photo` — in both rows. In one it's noise to fi
 in the other it's two credible people registering genuine ambiguity. The
 difference is invisible to a vote count and obvious once you keep the reasons.
 
-And note the quiet methodological trap the tool refuses to step in: it measures
-annotator reliability **only on cells where there was something to be right
-about.** Score people on the genuinely contested items and you don't measure
-quality — you measure *conformity*, and you systematically punish whoever sits
-in the minority. That is one of the most common, least noticed ways a pipeline
-launders bias and calls it "quality control."
+And note the quiet methodological trap this policy is trying to avoid. The
+demonstrator's present, explicit definition of **decidable** is: neither a
+cohort value fork nor a multi-option `NO-GROUND` cell. It still includes
+structured-variation and review cells; moving to the stricter `CONFIDENT`-only
+pool is a genuine policy choice, not something the code silently assumes.
+Scoring people on value forks or no-ground items does not measure quality — it
+measures *conformity*, and systematically punishes whoever sits in the minority.
+That is one of the most common, least noticed ways a pipeline launders bias and
+calls it "quality control."
 
 And this is not a side-note — it is the load-bearing reason the discipline
 matters, because the failure *inverts*. An annotator who dissents thoughtfully on

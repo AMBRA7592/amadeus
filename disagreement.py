@@ -17,9 +17,11 @@ This tool does the opposite. In three passes it:
   4. prices the damage: how many bits and how many decisions the collapse
      to one column would throw away.
 
-A deliberate refusal: annotator reliability is measured ONLY on decidable
-cells. Scoring people on genuinely contested items just punishes whoever
-sits in the minority -- a quiet, common way pipelines launder bias as quality.
+A deliberate refusal: annotator reliability is measured only on cells this
+demonstrator calls decidable: cells that are neither cohort value forks nor
+"no ground" multi-option cells. That current definition still includes
+structured-variation and review cells. Restricting it further to CONFIDENT-only
+is a separate policy choice; the code does not silently claim to have made it.
 
 No third-party dependencies.  Run:  python3 disagreement.py
 """
@@ -114,6 +116,12 @@ def structure(item, q, votes, cohorts):
 # pass 2: annotator reliability, on DECIDABLE cells only
 # --------------------------------------------------------------------------- #
 def reliability(items, struct_by_cell, cohorts):
+    """Leave-one-out agreement on the demonstrator's decidable-cell set.
+
+    "Decidable" here means neither ``value_fork`` nor ``no_ground``. It is not
+    synonymous with the later CONFIDENT verdict: structured-variation and
+    review cells remain in this pool unless the reliability policy is changed.
+    """
     decidable = {(s["item"], s["question"]) for s in struct_by_cell.values()
                  if not s["value_fork"] and not s["no_ground"]}
     hits, total = Counter(), Counter()
@@ -223,7 +231,7 @@ def main():
     print(f"  VALUE FORKS (cohorts truly diverge) ...... {len(forks)}  <- governance decisions, not labels")
     print(f"  MANUFACTURED CONSENSUS (minority silenced)  {len(manufactured)}")
     print(f"  disagreement entropy discarded ........... {bits_lost:.2f} bits across the set")
-    print("\n  annotator reliability (leave-one-out, DECIDABLE cells only):")
+    print("\n  annotator reliability (leave-one-out, DECIDABLE = not fork/no-ground):")
     for a in sorted(rel, key=rel.get):
         mark = "  <- below audit line; inspect, do not silently drop" if rel[a] < UNRELIABLE else ""
         print(f"    {a}: {rel[a]:.2f}{mark}")
