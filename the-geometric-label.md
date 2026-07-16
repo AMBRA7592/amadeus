@@ -113,10 +113,12 @@ three essays.
 **The quantity — the geometry gap.** Per cell, the divergence between the
 centres a trainer might actually use (at minimum, arithmetic vs. geometric; with
 an ordered axis, vs. the Wasserstein barycenter). `geometry.py` §3 prints it for
-every cell; the binary value fork `img2/explicit` tops out at `0.500` (its
-cohorts have disjoint support, so the geometries maximally disagree), the ribbon
-at `0.375`. A large gap means **"soft label" is underspecified** until you name
-a geometry.
+every cell where both centres exist. The binary value fork `img2/explicit` is
+reported as **undefined**, not `0.500`: its cohorts have disjoint support, so the
+left-KL centroid does not exist on the probability simplex. Treating an empty
+object as a distribution would make total variation meaningless. The ribbon's
+defined gap is `0.375`. A large gap — or an undefined centroid — means **"soft
+label" is underspecified** until you name a geometry.
 
 **The decision.** It is new, and it is concrete:
 
