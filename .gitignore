@@ -2,5 +2,6 @@ triage.json
 soft_labels.jsonl
 soft_labels.csv
 governance.jsonl
+resolution_records.jsonl
 __pycache__/
 *.pyc
