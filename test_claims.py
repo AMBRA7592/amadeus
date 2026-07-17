@@ -551,6 +551,24 @@ class TopologyClaims(unittest.TestCase):
         self.assertIn("(b₀, b₁) = (1, 1)", essay)
         self.assertIn("{:.0%}".format(topology.NOISE_FLOOR), essay)
 
+        expected_cores = [["a1", "a2", "a4"], ["b1", "b2", "b4"]]
+        joint_floors = []
+        for hundredths in range(0, 101, 5):
+            floor = hundredths / 100.0
+            explicit_state = self._complex("explicit", floor)
+            synthetic_state = self._complex("synthetic", floor)
+            if (
+                explicit_state[0] == (2, 0)
+                and explicit_state[1] == expected_cores
+                and synthetic_state[0] == (1, 0)
+            ):
+                joint_floors.append(floor)
+        stable_band = (min(joint_floors), max(joint_floors))
+        self.assertIn(
+            "stable from {:.2f} through {:.2f}".format(*stable_band), essay
+        )
+        self.assertIn("shipped {:.2f} sits".format(topology.NOISE_FLOOR), essay)
+
 
 class GeometryClaims(unittest.TestCase):
     def test_centres_gaps_and_disjoint_support(self):

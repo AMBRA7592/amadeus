@@ -115,7 +115,10 @@ noise floor applied:
 
 Two caveats are load-bearing. First, the 25% floor is a transparent heuristic,
 not a universal constant; a production analysis should report sensitivity to
-it. Second, this annotator co-deviation complex is **not itself Chichilnisky's
+it. On a 0.05-grid sweep, the joint reading — one synthetic camp plus the two
+explicit cohort cores — is stable from 0.20 through 0.75; the shipped 0.25 sits
+near the low edge so the near-consensus question still reads as one camp.
+Second, this annotator co-deviation complex is **not itself Chichilnisky's
 space of preferences**. Its Betti numbers are a useful structural diagnostic,
 not an empirical proof of the theorem's hypotheses. Even `(1, 0)` only rules out
 disconnection and one-dimensional holes; it does not prove contractibility in
