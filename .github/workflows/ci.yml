@@ -54,3 +54,5 @@ jobs:
               validator.validate(record)
           print("schema valid; example valid; 18 emitted records valid")
           PY
+      - name: Verified-claims suite (stdlib only)
+        run: python3 -m unittest test_claims -v
