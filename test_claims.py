@@ -402,8 +402,16 @@ class FrustrationClaims(unittest.TestCase):
         self.assertAlmostEqual(explicit_frustration / explicit_total, 0.05, places=2)
 
         synthetic_j, synthetic_annotators = frustration.coupling(DATASET, "synthetic")
-        _, synthetic_frustration, synthetic_total = frustration.ground_state(
+        synthetic_blobs, synthetic_frustration, synthetic_total = frustration.ground_state(
             synthetic_j, synthetic_annotators
+        )
+        expected_synthetic_partition = {
+            frozenset({"a3", "b3", "b4"}),
+            frozenset({"a1", "a2", "a4", "b1", "b2"}),
+        }
+        self.assertEqual(
+            {frozenset(blob) for blob in synthetic_blobs},
+            expected_synthetic_partition,
         )
         self.assertAlmostEqual(synthetic_frustration, 1.03125, places=5)
         self.assertAlmostEqual(synthetic_total, 5.46875, places=5)
@@ -427,6 +435,11 @@ class FrustrationClaims(unittest.TestCase):
     def test_frustration_values_are_pinned_in_the_essay(self):
         explicit_j, annotators = frustration.coupling(DATASET, "explicit")
         _, residual, total = frustration.ground_state(explicit_j, annotators)
+        synthetic_j, synthetic_annotators = frustration.coupling(DATASET, "synthetic")
+        synthetic_blobs, _, _ = frustration.ground_state(
+            synthetic_j, synthetic_annotators
+        )
+        dissenters = min(synthetic_blobs, key=lambda blob: (len(blob), blob))
         ribbon = Counter(_item("img1")["labels"]["ribbon"].values())
         soft, _ = frustration.temper(ribbon, 1.0)
         entropy = frustration.entropy_bits(soft.values())
@@ -436,6 +449,14 @@ class FrustrationClaims(unittest.TestCase):
         self.assertIn("destroys **all {:.2f}**".format(entropy), essay)
         self.assertIn("37.5% minority", essay)
         self.assertIn("**degenerate**", essay)
+        self.assertIn(
+            "scattered dissent ({})".format(
+                ", ".join("`{}`".format(annotator) for annotator in dissenters)
+            ),
+            essay,
+        )
+        self.assertNotIn("lone contrarian", essay)
+        self.assertIn("impurities, not a fork", essay)
 
 
 class TopologyClaims(unittest.TestCase):
