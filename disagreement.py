@@ -17,11 +17,10 @@ This tool does the opposite. In three passes it:
   4. prices the damage: how many bits and how many decisions the collapse
      to one column would throw away.
 
-A deliberate refusal: annotator reliability is measured only on cells this
-demonstrator calls decidable: cells that are neither cohort value forks nor
-"no ground" multi-option cells. That current definition still includes
-structured-variation and review cells. Restricting it further to CONFIDENT-only
-is a separate policy choice; the code does not silently claim to have made it.
+A deliberate refusal: annotator reliability is measured only on CONFIDENT
+cells. These have no value fork, no "no ground" verdict, no structured
+minority, and at least the near-consensus vote share. Scoring people on
+contested or review items would turn reliability into conformity.
 
 No third-party dependencies.  Run:  python3 disagreement.py
 """
@@ -37,7 +36,7 @@ DATA = os.path.join(HERE, "data", "labels.json")
 # --- thresholds (transparent on purpose; tune to your risk appetite) -------
 NEAR_CONSENSUS = 0.875   # >= this share agree -> the collapse to one label is honest
 STRUCTURED_MIN = 0.25    # a coherent minority this large is a stakeholder, not noise
-UNRELIABLE = 0.70        # below this (on decidable cells only) -> audit the annotator
+UNRELIABLE = 0.70        # below this (on CONFIDENT cells only) -> audit the annotator
 
 
 # --------------------------------------------------------------------------- #
@@ -113,21 +112,27 @@ def structure(item, q, votes, cohorts):
 
 
 # --------------------------------------------------------------------------- #
-# pass 2: annotator reliability, on DECIDABLE cells only
+# pass 2: annotator reliability, on CONFIDENT cells only
 # --------------------------------------------------------------------------- #
 def reliability(items, struct_by_cell, cohorts):
-    """Leave-one-out agreement on the demonstrator's decidable-cell set.
+    """Leave-one-out agreement on cells that will receive CONFIDENT verdicts.
 
-    "Decidable" here means neither ``value_fork`` nor ``no_ground``. It is not
-    synonymous with the later CONFIDENT verdict: structured-variation and
-    review cells remain in this pool unless the reliability policy is changed.
+    This mirrors ``classify()`` without depending on reliability itself:
+    CONFIDENT requires no value fork, no no-ground condition, no structured
+    minority, and a majority share at or above ``NEAR_CONSENSUS``.
     """
-    decidable = {(s["item"], s["question"]) for s in struct_by_cell.values()
-                 if not s["value_fork"] and not s["no_ground"]}
+    confident_cells = {
+        (s["item"], s["question"])
+        for s in struct_by_cell.values()
+        if not s["value_fork"]
+        and not s["no_ground"]
+        and not s["structured"]
+        and s["majority_share"] >= NEAR_CONSENSUS
+    }
     hits, total = Counter(), Counter()
     for it in items:
         for q, votes in it["labels"].items():
-            if (it["id"], q) not in decidable:
+            if (it["id"], q) not in confident_cells:
                 continue
             for ann, lab in votes.items():
                 others = Counter(v for a, v in votes.items() if a != ann)
@@ -231,7 +236,7 @@ def main():
     print(f"  VALUE FORKS (cohorts truly diverge) ...... {len(forks)}  <- governance decisions, not labels")
     print(f"  MANUFACTURED CONSENSUS (minority silenced)  {len(manufactured)}")
     print(f"  disagreement entropy discarded ........... {bits_lost:.2f} bits across the set")
-    print("\n  annotator reliability (leave-one-out, DECIDABLE = not fork/no-ground):")
+    print("\n  annotator reliability (leave-one-out, CONFIDENT cells only):")
     for a in sorted(rel, key=rel.get):
         mark = "  <- below audit line; inspect, do not silently drop" if rel[a] < UNRELIABLE else ""
         print(f"    {a}: {rel[a]:.2f}{mark}")

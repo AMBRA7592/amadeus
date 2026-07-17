@@ -158,8 +158,9 @@ identical, the *epistemic content* is opposite.
 
 The demonstrator encodes this distinction honestly. When a lone dissenter
 disagrees with a strong consensus, it does **not** assume they're wrong — it
-checks whether they're a chronically isolated annotator (audited on *decidable*
-cells only) and routes the rest to human review with the stated reason attached:
+checks whether they're a chronically isolated annotator (audited on
+`CONFIDENT` cells only) and routes the rest to human review with the stated
+reason attached:
 
 ```
 img3 / synthetic  CONFIDENT
@@ -173,15 +174,14 @@ Same dissenting label — `real photo` — in both rows. In one it's noise to fi
 in the other it's two credible people registering genuine ambiguity. The
 difference is invisible to a vote count and obvious once you keep the reasons.
 
-And note the quiet methodological trap this policy is trying to avoid. The
-demonstrator's present, explicit definition of **decidable** is: neither a
-cohort value fork nor a multi-option `NO-GROUND` cell. It still includes
-structured-variation and review cells; moving to the stricter `CONFIDENT`-only
-pool is a genuine policy choice, not something the code silently assumes.
-Scoring people on value forks or no-ground items does not measure quality — it
-measures *conformity*, and systematically punishes whoever sits in the minority.
-That is one of the most common, least noticed ways a pipeline launders bias and
-calls it "quality control."
+And note the quiet methodological trap this policy avoids. The demonstrator
+scores reliability **only on `CONFIDENT` cells**: no value fork, no
+`NO-GROUND` condition, no structured minority, and at least the declared
+near-consensus share. Structured-variation and review cells are excluded.
+Scoring people on those contested or unresolved items does not measure quality
+— it measures *conformity*, and systematically punishes whoever sits in the
+minority. That is one of the most common, least noticed ways a pipeline launders
+bias and calls it "quality control."
 
 And this is not a side-note — it is the load-bearing reason the discipline
 matters, because the failure *inverts*. An annotator who dissents thoughtfully on
@@ -193,7 +193,7 @@ annotator pool grooms itself toward a monoculture *before a single label ever
 trains a model.* That is the model collapse of §6 — but running one cycle
 earlier, in the **labor** rather than the data, and it is the sharper version:
 the data-side loop narrows what the model learns; the labor-side loop narrows
-who is left to disagree. Scoring quality only on decidable cells is what keeps
+who is left to disagree. Scoring quality only on `CONFIDENT` cells is what keeps
 the humans diverse long enough for their disagreement to reach the model at all.
 
 ---
@@ -275,7 +275,7 @@ is a small, concrete change in what counts as a *finished* label:
    starting point for exactly this triage.)
 
 4. **Never score annotators on contested items.** Compute quality only on
-   decidable cells. Otherwise your "reliability" metric is a conformity meter
+   `CONFIDENT` cells. Otherwise your "reliability" metric is a conformity meter
    that quietly fires your most perceptive dissenters.
 
 5. **Track a "groundlessness budget."** Report, per dataset, the fraction of
