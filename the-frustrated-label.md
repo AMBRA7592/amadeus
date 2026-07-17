@@ -71,7 +71,8 @@ from consensus* — literally the coupling J_ij of an Ising model fit to the dat
 state splits cleanly into two opposed domains at only 5% residual frustration,
 and the split **is exactly the two cohorts**. The system handed back its own
 pure states. The consensus `synthetic` question supports no such split: one
-domain, plus a lone contrarian — a ferromagnet with an impurity, not a fork.
+dominant domain plus scattered dissent (`a3`, `b3`, `b4`) — a ferromagnet with
+impurities, not a fork.
 
 Three phases, three kinds of question:
 
