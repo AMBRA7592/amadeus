@@ -1,6 +1,6 @@
 name: proofs
 
-# Low-cost insurance: every push and PR re-runs all seven zero-dependency
+# Low-cost insurance: every push and PR re-runs all eight zero-dependency
 # scripts on the oldest and a current Python, so an outside contribution that
 # breaks one of the proofs fails visibly instead of landing quietly.
 
@@ -25,13 +25,32 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: Diagnostic, exporter, the spine, and the four foundations
+      - name: Diagnostic, exporter, record, spine, and four foundations
         run: |
           python3 disagreement.py   # writes triage.json
           python3 soft_labels.py    # consumes triage.json
+          python3 resolution.py     # consumes triage + soft labels + governance
           python3 aggregation.py
           python3 frustration.py
           python3 topology.py
           python3 geometry.py
           python3 bayes_optimal.py
-          python3 -c "import json; json.load(open('schema/resolution_record.schema.json'))"  # schema stays valid JSON
+      - name: Validate the schema, example, and emitted records
+        run: |
+          python3 -m pip install --disable-pip-version-check "jsonschema==4.23.0"
+          python3 - <<'PY'
+          import json
+          from jsonschema import Draft202012Validator, FormatChecker
+
+          with open("schema/resolution_record.schema.json", encoding="utf-8") as f:
+              schema = json.load(f)
+          Draft202012Validator.check_schema(schema)
+          validator = Draft202012Validator(schema, format_checker=FormatChecker())
+          validator.validate(schema["examples"][0])
+          with open("resolution_records.jsonl", encoding="utf-8") as f:
+              records = [json.loads(line) for line in f if line.strip()]
+          assert len(records) == 18, len(records)
+          for record in records:
+              validator.validate(record)
+          print("schema valid; example valid; 18 emitted records valid")
+          PY

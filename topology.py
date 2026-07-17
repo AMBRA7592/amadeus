@@ -35,6 +35,7 @@ import os
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data", "labels.json")
 BAR = "=" * 78
+NOISE_FLOOR = 0.25
 
 
 # --------------------------------------------------------------------------- #
@@ -155,8 +156,12 @@ def gf2_rank(rows):
 
 
 def betti(vertices, edges, triangles):
-    """b0, b1 of a 2-complex over GF(2). b0 = components; b1 = independent loops
-    not filled by triangles. Contractible <=> (b0, b1) = (1, 0)."""
+    """b0, b1 of a 2-complex over GF(2).
+
+    b0 counts components; b1 counts independent loops not filled by triangles.
+    (b0, b1) = (1, 0) rules out these two obstructions, but is not by itself a
+    general proof of contractibility.
+    """
     vidx = {v: i for i, v in enumerate(vertices)}
     eidx = {e: i for i, e in enumerate(edges)}
     d1 = [[vidx[e[0]], vidx[e[1]]] for e in edges]
@@ -170,45 +175,108 @@ def betti(vertices, edges, triangles):
     return b0, b1
 
 
-def agreement_complex(ds, q):
-    """Flag complex of the 'same camp' graph: an edge joins two annotators whose
-    co-deviation from consensus is positive (the sign of the inferred coupling).
-    Easy unanimous items cancel out, so only structured agreement builds the
-    space -- and its shape is the shape of the disagreement."""
+def agreement_complex(ds, q, noise_floor=NOISE_FLOOR):
+    """Thresholded flag complex of the 'same camp' graph.
+
+    An edge joins two annotators when their co-deviation from the item mean is
+    positive and at least ``noise_floor`` times the strongest positive coupling
+    for this question. Annotators with no retained edge are returned separately
+    as unaligned; counting them as one-person camps makes near-consensus data
+    look spuriously disconnected.
+
+    This is an exploratory camp diagnostic. It is not Chichilnisky's preference
+    space and its Betti numbers do not, by themselves, establish the theorem's
+    hypotheses on these data.
+    """
     anns = ds["annotators"]
     v = {a: [it["labels"][q][a] for it in ds["items"]] for a in anns}
     ni = len(ds["items"])
     mu = [sum(v[a][k] for a in anns) / len(anns) for k in range(ni)]
-    edges = []
+    couplings = {}
     for a, b in itertools.combinations(anns, 2):
-        J = sum((v[a][k] - mu[k]) * (v[b][k] - mu[k]) for k in range(ni))
-        if J > 1e-9:
-            edges.append((a, b))
+        couplings[(a, b)] = sum(
+            (v[a][k] - mu[k]) * (v[b][k] - mu[k]) for k in range(ni)
+        )
+    strongest = max((j for j in couplings.values() if j > 0), default=0.0)
+    threshold = noise_floor * strongest
+    edges = [edge for edge, j in couplings.items()
+             if strongest > 0 and j >= threshold - 1e-12]
+    aligned = {a for edge in edges for a in edge}
+    vertices = [a for a in anns if a in aligned]
+    unaligned = [a for a in anns if a not in aligned]
     eset = set(edges)
-    tris = [c for c in itertools.combinations(anns, 3)
+    tris = [c for c in itertools.combinations(vertices, 3)
             if all(tuple(sorted((c[i], c[j]))) in eset for i, j in [(0, 1), (1, 2), (0, 2)])]
-    return list(anns), edges, tris
+    return vertices, edges, tris, unaligned, threshold
+
+
+def components_of(vertices, edges):
+    """Connected components of an undirected graph, in stable display order."""
+    neighbours = {v: set() for v in vertices}
+    for a, b in edges:
+        neighbours[a].add(b)
+        neighbours[b].add(a)
+    unseen = set(vertices)
+    components = []
+    while unseen:
+        start = min(unseen)
+        stack, component = [start], []
+        unseen.remove(start)
+        while stack:
+            node = stack.pop()
+            component.append(node)
+            for nxt in sorted(neighbours[node], reverse=True):
+                if nxt in unseen:
+                    unseen.remove(nxt)
+                    stack.append(nxt)
+        components.append(sorted(component))
+    return sorted(components, key=lambda c: (c[0], len(c)))
 
 
 def betti_section(ds):
     print("\n" + BAR + "\n3. THE SHAPE OF THE DISAGREEMENT  --  Betti numbers of the real data\n" + BAR)
-    print("  Build the space of 'who shares a camp' and measure its holes.")
-    print("  Contractible = (b0, b1) = (1, 0) = one blob = a single ground truth can live")
-    print("  there. Anything else is a Chichilnisky obstruction.\n")
+    print("  Build a thresholded graph of 'who shares a camp': retain positive")
+    print(f"  co-deviation at >= {NOISE_FLOOR:.0%} of the strongest coupling, then form its flag")
+    print("  complex. Annotators with no retained tie are UNALIGNED, not one-person")
+    print("  camps. b0 counts camp components; b1 counts unfilled loops. This is an")
+    print("  exploratory diagnostic, not a reconstruction of Chichilnisky's preference")
+    print("  space or, by itself, a proof that a ground truth exists.\n")
+    cohorts = {name: set(members) for name, members in ds["cohorts"].items()}
     for q in ("synthetic", "explicit"):
-        V, E, T = agreement_complex(ds, q)
+        V, E, T, unaligned, threshold = agreement_complex(ds, q)
         b0, b1 = betti(V, E, T)
-        if (b0, b1) == (1, 0):
-            verdict = "contractible -> a consensus; ground truth can live here"
+        components = components_of(V, E)
+        if not components:
+            verdict = "no above-noise camp structure detected"
         elif b1 > 0:
-            verdict = "has a LOOP (b1>0) -> a ring of agreement with no center"
+            verdict = "an unfilled loop is present in the retained camp complex"
+        elif b0 > 1:
+            verdict = f"{b0} structured camps are disconnected"
         else:
-            verdict = f"DISCONNECTED into {b0} pieces -> no path between worldviews"
+            verdict = "one structured camp; no multi-camp split detected"
         print(f"  {q:9s}  (b0, b1) = ({b0}, {b1})   {verdict}")
+        if components:
+            print("             camps: " + " + ".join("{" + ", ".join(c) + "}" for c in components))
+        if unaligned:
+            print(f"             unaligned (no retained tie): {', '.join(unaligned)}")
+        if len(components) == 2:
+            matched = []
+            for component in components:
+                matches = [name for name, members in cohorts.items()
+                           if set(component).issubset(members)]
+                matched.append(matches[0] if len(matches) == 1 else None)
+            if None not in matched and len(set(matched)) == 2:
+                print("             ^ the two components recover the cores of the two named cohorts;")
+                print("               unaligned annotators are not forced into either camp.")
+        elif q == "synthetic" and len(components) == 1:
+            print("             ^ only one small co-deviation pocket survives the floor; the")
+            print("               near-unanimous vote contains no structured opposing camps.")
+        print(f"             retained-coupling floor: {threshold:.6f}")
     print()
-    print("  The contested question tears into two contractible pieces (b0=2): the two")
-    print("  cohorts, with no continuous path between them, so no single point they")
-    print("  could be averaged to. The fork is a DISCONNECTION of preference space.")
+    print("  The noise floor is load-bearing and heuristic. Without it, near-zero")
+    print("  residual ties fragment a near-consensus question into fake one-person")
+    print("  'worldviews'. A production use should report threshold sensitivity rather")
+    print("  than treating this one illustrative setting as universal.")
     print()
     # A constructed example of the other obstruction: a loop with no center.
     ring_V = ["c1", "c2", "c3", "c4"]
@@ -218,7 +286,8 @@ def betti_section(ds):
           f"c1-c2-c3-c4-c1,")
     print(f"  no one agreeing across the diagonal: (b0, b1) = ({b0}, {b1}). A hole with")
     print(f"  no center -- everyone locally agrees, yet there is no global consensus to")
-    print(f"  contract to. That b1=1 is the exact obstruction Chichilnisky's theorem names.")
+    print(f"  contract to. Here b1=1 records the loop explicitly; connecting this proxy")
+    print(f"  complex to a formal social-choice domain requires additional assumptions.")
 
 
 # --------------------------------------------------------------------------- #
@@ -229,7 +298,7 @@ def unification():
     rows = [
         ("essay 1  (social choice)", "no neutral rule for >=3 options", "Arrow's impossibility"),
         ("essay 2  (statistical mechanics)", "competing constraints, no ground state", "frustration / a spin glass"),
-        ("essay 3  (topology)", "preference space is not contractible", "a hole: b0>1 or b1>0"),
+        ("essay 3  (topology)", "preference space is not contractible", "disconnection or a hole"),
     ]
     for a, b, c in rows:
         print(f"  {a:34s} {b:42s} {c}")

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/releasecontrol/groundless-truth/main/schema/resolution_record.schema.json",
   "title": "Resolution Record",
-  "description": "The canonical record of a single aggregation act: what plural human judgement was collapsed (or refused), under which rule, by whose authority, with what conditions, and how to replay it. This is the object the rest of the repository argues every 'ground truth' actually is. Most fields are produced by the tools here: the inputs and measures by disagreement.py and the foundations (aggregation.py, frustration.py, topology.py, geometry.py); the authority and disposition by the governance queue in soft_labels.py. The provenance fields (timestamp, replay_hash, produced_by) are the operational record attached when the decision is logged, not emitted by any script.",
+  "description": "The canonical record of a single aggregation act: what plural human judgement was collapsed (or refused), under which rule, by whose authority, with what conditions, and how to replay its inputs. This is the object the rest of the repository argues every 'ground truth' actually is. resolution.py emits one record per cell from the diagnostic, soft-label export, governance queue, and declared policy. Human decisions and rationales remain explicit fields rather than being inferred by the tool.",
   "type": "object",
   "additionalProperties": false,
   "required": ["item", "question", "input", "rule", "measures", "authority", "disposition", "provenance"],
@@ -68,7 +68,7 @@
         "loss_geometry": {
           "type": "string",
           "description": "The training geometry the soft label will be consumed under. Cross-entropy = the arithmetic centre; an order-aware loss = the Wasserstein centre. The default is never neutral on a structured axis.",
-          "examples": ["cross_entropy/arithmetic", "wasserstein/order_aware", "none/escalated"]
+          "examples": ["0-1/argmax", "cross_entropy/arithmetic", "wasserstein/order_aware", "none/escalated"]
         }
       }
     },
@@ -106,7 +106,7 @@
     },
     "authority": {
       "type": "object",
-      "description": "Who is accountable for the rule choices above. The difference between a default made in the dark and a decision someone owns.",
+      "description": "Who made the current disposition. An automated policy may escalate a value fork, but any final decided:<label> outcome must be owned by a named human.",
       "additionalProperties": false,
       "required": ["policy_version", "decided_by"],
       "properties": {
@@ -117,7 +117,7 @@
         "decided_by": {
           "type": "string",
           "enum": ["automated", "named_owner"],
-          "description": "Whether an aggregation function or a named human made the call. Value forks must be 'named_owner'."
+          "description": "Whether automation made the current disposition or a named human made a final decision. A pending value fork is automated only in the narrow sense that policy escalated it; a final value-fork label must be 'named_owner'."
         },
         "owner": {
           "type": ["string", "null"],
@@ -152,7 +152,8 @@
         "timestamp": { "type": "string", "format": "date-time" },
         "replay_hash": {
           "type": "string",
-          "description": "Content hash over {input, rule, policy_version} sufficient to reproduce this disposition. Changing any input or rule changes the hash, so a record cannot silently drift from what produced it."
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "SHA-256 over canonical JSON {input, policy_version, rule}: keys sorted recursively; separators exactly ',' and ':'; non-ASCII unescaped; UTF-8 encoded; no trailing newline. Changing the evidence, rule, or policy version changes the hash. The hash identifies replay inputs; it does not attest a later human decision, rationale, timestamp, or the integrity of the complete record."
         },
         "produced_by": {
           "type": "string",
@@ -161,6 +162,30 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "disposition": {
+            "properties": { "outcome": { "pattern": "^decided:" } },
+            "required": ["outcome"]
+          }
+        },
+        "required": ["disposition"]
+      },
+      "then": {
+        "properties": {
+          "authority": {
+            "properties": {
+              "decided_by": { "const": "named_owner" },
+              "owner": { "type": "string", "minLength": 1 }
+            },
+            "required": ["decided_by", "owner"]
+          }
+        }
+      }
+    }
+  ],
   "examples": [
     {
       "item": "img2",
@@ -187,14 +212,14 @@
       "measures": {
         "entropy_bits": 1.0,
         "fork_status": "value_fork",
-        "manufactured_consensus": false,
+        "manufactured_consensus": true,
         "curl": null,
-        "geometry_gap": 0.5
+        "geometry_gap": null
       },
       "authority": {
         "policy_version": "safety-2026.05",
-        "decided_by": "named_owner",
-        "owner": "<unassigned — pending>"
+        "decided_by": "automated",
+        "owner": null
       },
       "disposition": {
         "outcome": "escalated",
@@ -205,8 +230,8 @@
       },
       "provenance": {
         "timestamp": "2026-05-26T16:20:00Z",
-        "replay_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-        "produced_by": "disagreement.py + soft_labels.py (groundless-truth v1.2.0)"
+        "replay_hash": "sha256:02c198d88a9bd66a8df03e3a0b04b994ea4b567d3c087cf9821c5d5eec47a5d6",
+        "produced_by": "resolution.py (groundless-truth v1.3.0)"
       }
     }
   ]

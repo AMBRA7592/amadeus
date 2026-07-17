@@ -89,25 +89,39 @@ groundlessness you can put a number on.**
 
 ---
 
-## 3. The shape of the real disagreement
+## 3. A thresholded diagnostic of the real disagreement
 
-`topology.py` §3 measures the data directly. Build the space of "who shares a
-camp" — annotators joined when they co-deviate from consensus the same way — and
-compute its Betti numbers. A contractible space, the only kind that can host a
-single ground truth, has `(b₀, b₁) = (1, 0)`: one piece, no holes. Anything else
-is a Chichilnisky obstruction.
+`topology.py` §3 builds an exploratory **camp complex**: two annotators are
+joined when their co-deviation from the item mean is positive and at least 25%
+of the strongest positive coupling for that question. Annotators with no
+above-floor tie are reported as **unaligned** instead of being counted as
+one-person camps. The flag complex of the retained graph then gives `(b₀, b₁)`:
+the number of connected camp components and the number of unfilled loops.
 
-The contested `explicit` question comes back `(b₀, b₁) = (2, 0)`: **two
-disconnected pieces** — the two cohorts, with no continuous path between them, so
-no single point they could be averaged *to*. The fork is not a noisy blob around
-a centre; it is a *disconnection* of preference space. (The other obstruction, a
-loop with no centre — `b₁ = 1`, a ring of neighbours who agree locally with no
-global consensus — `topology.py` builds as a small illustration: everyone agrees
-with their neighbour, yet there is nothing in the middle to contract to.)
+That floor fixes the original construction's concrete failure. With every
+positive coupling retained, the near-unanimous `synthetic` question fragmented
+into three pieces and falsely looked like three "worldviews," while the
+`explicit` components were not the two cohorts the prose claimed. With the
+noise floor applied:
 
-Either way the lesson is the same and it is geometric: **the data has no
-contractible centre to call "the ground."** That is what "ground truth has no
-ground" *is*, drawn rather than argued.
+- `synthetic` gives `(b₀, b₁) = (1, 0)` on one small retained pocket
+  `{a3, b3}`; the other six annotators are unaligned. Combined with the
+  near-unanimous votes, the honest conclusion is narrow: **no structured
+  opposing camps are detected**.
+- `explicit` gives `(b₀, b₁) = (2, 0)`: the cohort-A core
+  `{a1, a2, a4}` and cohort-B core `{b1, b2, b4}`, with `a3` and `b3`
+  unaligned rather than forced into either camp. Here the thresholded graph
+  really does recover the two cohort cores from the votes.
+
+Two caveats are load-bearing. First, the 25% floor is a transparent heuristic,
+not a universal constant; a production analysis should report sensitivity to
+it. Second, this annotator co-deviation complex is **not itself Chichilnisky's
+space of preferences**. Its Betti numbers are a useful structural diagnostic,
+not an empirical proof of the theorem's hypotheses. Even `(1, 0)` only rules out
+disconnection and one-dimensional holes; it does not prove contractibility in
+general. The constructed four-annotator ring remains the clean illustration of
+the other detected obstruction: `(b₀, b₁) = (1, 1)`, locally connected with
+an unfilled loop.
 
 ---
 

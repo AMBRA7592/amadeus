@@ -71,8 +71,9 @@ is simply false. And the label pipeline is built on top of it.
 ## 2. These images are the proof
 
 This set is, by accident, a near-perfect instrument for seeing
-this. Take the four questions a labeler would actually be asked, and notice that
-*each one is groundless in a different way*:
+this. Take four questions a labeler might be asked — the first three are in the
+demonstrator; the fourth is illustrative only — and notice that *each one is
+groundless in a different way*:
 
 - **"Is this a real person?"** There is no ground because the person does not
   exist. The image is synthetic, but it is built by interpolating millions of
@@ -157,8 +158,9 @@ identical, the *epistemic content* is opposite.
 
 The demonstrator encodes this distinction honestly. When a lone dissenter
 disagrees with a strong consensus, it does **not** assume they're wrong — it
-checks whether they're a chronically isolated annotator (audited on *decidable*
-cells only) and routes the rest to human review with the stated reason attached:
+checks whether they're a chronically isolated annotator (audited on
+`CONFIDENT` cells only) and routes the rest to human review with the stated
+reason attached:
 
 ```
 img3 / synthetic  CONFIDENT
@@ -172,12 +174,14 @@ Same dissenting label — `real photo` — in both rows. In one it's noise to fi
 in the other it's two credible people registering genuine ambiguity. The
 difference is invisible to a vote count and obvious once you keep the reasons.
 
-And note the quiet methodological trap the tool refuses to step in: it measures
-annotator reliability **only on cells where there was something to be right
-about.** Score people on the genuinely contested items and you don't measure
-quality — you measure *conformity*, and you systematically punish whoever sits
-in the minority. That is one of the most common, least noticed ways a pipeline
-launders bias and calls it "quality control."
+And note the quiet methodological trap this policy avoids. The demonstrator
+scores reliability **only on `CONFIDENT` cells**: no value fork, no
+`NO-GROUND` condition, no structured minority, and at least the declared
+near-consensus share. Structured-variation and review cells are excluded.
+Scoring people on those contested or unresolved items does not measure quality
+— it measures *conformity*, and systematically punishes whoever sits in the
+minority. That is one of the most common, least noticed ways a pipeline launders
+bias and calls it "quality control."
 
 And this is not a side-note — it is the load-bearing reason the discipline
 matters, because the failure *inverts*. An annotator who dissents thoughtfully on
@@ -189,7 +193,7 @@ annotator pool grooms itself toward a monoculture *before a single label ever
 trains a model.* That is the model collapse of §6 — but running one cycle
 earlier, in the **labor** rather than the data, and it is the sharper version:
 the data-side loop narrows what the model learns; the labor-side loop narrows
-who is left to disagree. Scoring quality only on decidable cells is what keeps
+who is left to disagree. Scoring quality only on `CONFIDENT` cells is what keeps
 the humans diverse long enough for their disagreement to reach the model at all.
 
 ---
@@ -271,7 +275,7 @@ is a small, concrete change in what counts as a *finished* label:
    starting point for exactly this triage.)
 
 4. **Never score annotators on contested items.** Compute quality only on
-   decidable cells. Otherwise your "reliability" metric is a conformity meter
+   `CONFIDENT` cells. Otherwise your "reliability" metric is a conformity meter
    that quietly fires your most perceptive dissenters.
 
 5. **Track a "groundlessness budget."** Report, per dataset, the fraction of

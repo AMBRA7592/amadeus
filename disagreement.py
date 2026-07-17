@@ -17,9 +17,10 @@ This tool does the opposite. In three passes it:
   4. prices the damage: how many bits and how many decisions the collapse
      to one column would throw away.
 
-A deliberate refusal: annotator reliability is measured ONLY on decidable
-cells. Scoring people on genuinely contested items just punishes whoever
-sits in the minority -- a quiet, common way pipelines launder bias as quality.
+A deliberate refusal: annotator reliability is measured only on CONFIDENT
+cells. These have no value fork, no "no ground" verdict, no structured
+minority, and at least the near-consensus vote share. Scoring people on
+contested or review items would turn reliability into conformity.
 
 No third-party dependencies.  Run:  python3 disagreement.py
 """
@@ -35,7 +36,7 @@ DATA = os.path.join(HERE, "data", "labels.json")
 # --- thresholds (transparent on purpose; tune to your risk appetite) -------
 NEAR_CONSENSUS = 0.875   # >= this share agree -> the collapse to one label is honest
 STRUCTURED_MIN = 0.25    # a coherent minority this large is a stakeholder, not noise
-UNRELIABLE = 0.70        # below this (on decidable cells only) -> audit the annotator
+UNRELIABLE = 0.70        # below this (on CONFIDENT cells only) -> audit the annotator
 
 
 # --------------------------------------------------------------------------- #
@@ -111,15 +112,27 @@ def structure(item, q, votes, cohorts):
 
 
 # --------------------------------------------------------------------------- #
-# pass 2: annotator reliability, on DECIDABLE cells only
+# pass 2: annotator reliability, on CONFIDENT cells only
 # --------------------------------------------------------------------------- #
 def reliability(items, struct_by_cell, cohorts):
-    decidable = {(s["item"], s["question"]) for s in struct_by_cell.values()
-                 if not s["value_fork"] and not s["no_ground"]}
+    """Leave-one-out agreement on cells that will receive CONFIDENT verdicts.
+
+    This mirrors ``classify()`` without depending on reliability itself:
+    CONFIDENT requires no value fork, no no-ground condition, no structured
+    minority, and a majority share at or above ``NEAR_CONSENSUS``.
+    """
+    confident_cells = {
+        (s["item"], s["question"])
+        for s in struct_by_cell.values()
+        if not s["value_fork"]
+        and not s["no_ground"]
+        and not s["structured"]
+        and s["majority_share"] >= NEAR_CONSENSUS
+    }
     hits, total = Counter(), Counter()
     for it in items:
         for q, votes in it["labels"].items():
-            if (it["id"], q) not in decidable:
+            if (it["id"], q) not in confident_cells:
                 continue
             for ann, lab in votes.items():
                 others = Counter(v for a, v in votes.items() if a != ann)
@@ -223,7 +236,7 @@ def main():
     print(f"  VALUE FORKS (cohorts truly diverge) ...... {len(forks)}  <- governance decisions, not labels")
     print(f"  MANUFACTURED CONSENSUS (minority silenced)  {len(manufactured)}")
     print(f"  disagreement entropy discarded ........... {bits_lost:.2f} bits across the set")
-    print("\n  annotator reliability (leave-one-out, DECIDABLE cells only):")
+    print("\n  annotator reliability (leave-one-out, CONFIDENT cells only):")
     for a in sorted(rel, key=rel.get):
         mark = "  <- below audit line; inspect, do not silently drop" if rel[a] < UNRELIABLE else ""
         print(f"    {a}: {rel[a]:.2f}{mark}")

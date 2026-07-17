@@ -273,7 +273,7 @@ def closing():
         ("the distribution P(Y|X)", "the STATISTICAL object", "triage.json (disagreement.py)"),
         ("the hard label / action", "the DECISION object", "soft_labels.jsonl (soft_labels.py)"),
         ("the aggregation rule", "the GOVERNANCE object", "the four foundations (Arrow/Parisi/Chichilnisky/info-geometry)"),
-        ("the record", "what makes it AUDITABLE", "resolution_record.schema.json"),
+        ("the record", "what makes it AUDITABLE", "resolution_records.jsonl (resolution.py)"),
     ]
     w = max(len(a) for a, _, _ in rows)
     for a, b, c in rows:

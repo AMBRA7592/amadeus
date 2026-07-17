@@ -184,10 +184,11 @@ everywhere. Three honest limits:
 
 ## Coda
 
-The newer frames in this set put a surveillance camera in the corner and a
-bank of monitors on the wall — one scene rendered as a grid of simultaneous
-angles. It is the right emblem to end on, because it is the opposite of a
-quench. A control room does not collapse its twelve feeds into one "true" frame
+The wider source series that inspired this demonstrator included frames with a
+surveillance camera in the corner and a bank of monitors on the wall; those
+source images are not distributed in this repository. One scene rendered as a
+grid of simultaneous angles is the right emblem to end on, because it is the
+opposite of a quench. A control room does not collapse its twelve feeds into one "true" frame
 and delete the rest; it keeps the ensemble on the wall, because the truth of
 the room *is* the set of views, and any single frame is already a choice of
 where to stand. The grid is the distribution, displayed instead of averaged —

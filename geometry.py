@@ -49,14 +49,21 @@ def arithmetic_mean(dists):
 
 def geometric_mean(dists):
     """Left-sided KL centroid argmin_c sum KL(c || p_i). Normalised geometric
-    mean; zero wherever ANY distribution is zero (keeps only common support)."""
+    mean; zero wherever ANY distribution is zero (keeps only common support).
+
+    Returns None when the distributions have disjoint support. In that case the
+    left-KL objective has no finite centroid on the probability simplex; an
+    empty dict would be an invalid distribution, not a maximally distant one.
+    """
     keys = set().union(*dists)
     g = {}
     for k in keys:
         vals = [d.get(k, 0.0) for d in dists]
         g[k] = 0.0 if any(v <= 0 for v in vals) else math.exp(sum(math.log(v) for v in vals) / len(vals))
     s = sum(g.values())
-    return {k: v / s for k, v in g.items() if s > 0 and v / s > 1e-12}
+    if s <= 0:
+        return None
+    return {k: v / s for k, v in g.items() if v / s > 1e-12}
 
 
 def fisher_rao_mean(p, q):
@@ -187,13 +194,21 @@ def section_operator(ds):
                 return c
             A, B = cdist(cohorts["A"]), cdist(cohorts["B"])
             am, gm = arithmetic_mean([A, B]), geometric_mean([A, B])
-            gap = tv(am, gm)
-            if gap > 1e-9:
+            gap = None if gm is None else tv(am, gm)
+            if gap is None or gap > 1e-9:
                 rows.append((f"{it['id']}/{q}", gap))
-    rows.sort(key=lambda r: -r[1])
+    rows.sort(key=lambda r: (r[1] is not None, -(r[1] or 0.0)))
     for name, gap in rows:
-        flag = "   <- geometry-dependent: name the loss on the record" if gap >= 0.3 else ""
-        print(f"    {name:16s} gap = {gap:.3f}{flag}")
+        if gap is None:
+            print(f"    {name:16s} gap = undefined [*]   <- disjoint cohort support")
+        else:
+            flag = "   <- geometry-dependent: name the loss on the record" if gap >= 0.3 else ""
+            print(f"    {name:16s} gap = {gap:.3f}{flag}")
+    if any(gap is None for _, gap in rows):
+        print("\n    [*] The cohorts share no supported label on this cell, so the left-KL")
+        print("        centroid does not exist. No numeric TV gap is reported: total")
+        print("        variation is defined between probability distributions, and an")
+        print("        empty object is not one.")
     print("\n  THE DECISION (the part the first three essays do not give you):")
     print("    - The training loss IS a choice of geometry. Cross-entropy = the")
     print("      arithmetic centre; an EMD/Wasserstein loss = the order-aware centre.")

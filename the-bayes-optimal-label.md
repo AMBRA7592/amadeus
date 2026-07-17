@@ -158,7 +158,7 @@ and the repository already produces each one:
 | the distribution `P(Y|X)` | the **statistical** object | `triage.json` ([`disagreement.py`](disagreement.py)) |
 | the hard label / action | the **decision** object | `soft_labels.jsonl` ([`soft_labels.py`](soft_labels.py)) |
 | the aggregation rule | the **governance** object | the four foundations (Arrow / Parisi / Chichilnisky / information geometry) |
-| the record | what makes it **auditable** | [`resolution_record.schema.json`](schema/resolution_record.schema.json) |
+| the record | what makes it **auditable** | `resolution_records.jsonl` ([`resolution.py`](resolution.py), validated by [`resolution_record.schema.json`](schema/resolution_record.schema.json)) |
 
 Read this way, the rest of the repository snaps into place. The four foundation
 essays are not four separate analogies; they are four **expansions of the
