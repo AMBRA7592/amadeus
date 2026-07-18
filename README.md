@@ -54,11 +54,11 @@ why the rule is never neutral, and the schema is the record.
 
 ```mermaid
 flowchart LR
-    J["Judgements and reasons<br/>data/labels.json"] --> D["1. Distribution<br/>soft_labels.jsonl"]
-    J --> R["3. Aggregation rule<br/>disagreement.py and govern.py"]
-    D --> H["2. Hard label or disposition<br/>collapse, soft label, review, or decision"]
+    J["Judgements and reasons<br/>data/labels.json"] --> D["1. Distribution P(Y|X)<br/>triage.json via disagreement.py"]
+    J --> R["3. Aggregation rule<br/>four foundations: Arrow / Parisi / Chichilnisky / information geometry"]
+    D --> H["2. Hard label or action<br/>soft_labels.jsonl via soft_labels.py"]
     R --> H
-    D --> O["4. Resolution record<br/>resolution_records.jsonl"]
+    D --> O["4. Resolution record<br/>resolution_records.jsonl via resolution.py"]
     H --> O
     R --> O
 ```
