@@ -45,6 +45,7 @@ why the rule is never neutral, and the schema is the record.
 | `resolution.py` | **Record emitter.** Joins the diagnostic, trainer export, governance state, and declared policy into one schema-conformant resolution record per cell. Writes `resolution_records.jsonl`; pending value forks remain escalated rather than pretending an owner has decided them. |
 | [`schema/resolution_record.schema.json`](schema/resolution_record.schema.json) | **The record — what the whole argument produces.** A canonical record of one aggregation act: input judgements + reasons, the aggregation/tie-break rule, the loss/geometry, computed measures, the policy version + authority + owner, the disposition + conditions, and a deterministic replay-input hash. The hash covers evidence, rule, and policy version; it does not attest a later human choice. |
 | [`schema/labels.schema.json`](schema/labels.schema.json) | JSON Schema for annotation input accepted by the three operational tools; the tools add zero-dependency referential-integrity checks. |
+| [`adapters/README.md`](adapters/README.md) | **Real-data path.** Convert separately downloaded ChaosNLI label counters without inventing cross-item annotator identities; only a synthetic format fixture is committed here. |
 
 ### Run it (zero dependencies, Python 3.8+)
 
@@ -80,6 +81,11 @@ Studio/wide-CSV conversion recipes; the contract is
 arbitrary conformant annotations. The decision-theory spine and four foundation
 scripts remain intentionally pinned to the bundled demo because their printed
 narratives name its cohorts, ribbon, and 4–4 forks.
+
+For a public real-dataset path, see the [ChaosNLI adapter](adapters/README.md).
+ChaosNLI exposes anonymous per-item counts, so the adapter preserves the label
+distribution without claiming stable annotator identity or meaningful
+reliability/value-fork results.
 
 The first prints a per-cell triage and a "bill" — how many bits of human
 disagreement a single ground-truth column would erase, and where. The second

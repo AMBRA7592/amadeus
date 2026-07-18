@@ -14,6 +14,7 @@ import atexit
 import copy
 import hashlib
 import json
+import math
 import shutil
 import subprocess
 import sys
@@ -846,6 +847,158 @@ class BringYourOwnDataClaims(unittest.TestCase):
             source = (ROOT / proof).read_text(encoding="utf-8")
             with self.subTest(proof=proof):
                 self.assertIn("intentionally pinned to data/labels.json", source)
+
+
+class ChaosNLIAdapterClaims(unittest.TestCase):
+    ADAPTER = ROOT / "adapters" / "chaosnli.py"
+    FIXTURE = ROOT / "adapters" / "fixtures" / "chaosnli_sample.jsonl"
+
+    def _convert(self, directory):
+        output = directory / "labels.json"
+        subprocess.run(
+            [
+                sys.executable,
+                str(self.ADAPTER),
+                str(self.FIXTURE),
+                "--out",
+                str(output),
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+        )
+        return output
+
+    def test_anonymous_counts_round_trip_to_exact_soft_labels(self):
+        source = _load_jsonl(self.FIXTURE)
+        source_counts = {
+            record["uid"]: {str(label): count for label, count in record["label_counter"].items()}
+            for record in source
+        }
+        with tempfile.TemporaryDirectory(prefix="groundless-chaosnli-") as temp:
+            temp_path = Path(temp)
+            labels_path = self._convert(temp_path)
+            dataset = _load_json(labels_path)
+
+            self.assertEqual(
+                dataset["questions"]["nli_label"],
+                {
+                    "type": "categorical",
+                    "labels": ["e", "n", "c", "1", "2"],
+                    "note": (
+                        "Raw ChaosNLI categories: e=entailment, n=neutral, "
+                        "c=contradiction; alphaNLI uses 1=hypothesis 1 and "
+                        "2=hypothesis 2."
+                    ),
+                },
+            )
+            about = dataset["_about"].lower()
+            for caveat in (
+                "unique to each item",
+                "reliability",
+                "value-fork",
+                "not meaningful",
+                "distribution, entropy, and soft labels",
+            ):
+                self.assertIn(caveat, about)
+
+            self.assertEqual(len(dataset["items"]), len(source))
+            self.assertEqual(len(dataset["annotators"]), 20)
+            self.assertEqual(dataset["cohorts"], {"crowd": dataset["annotators"]})
+            annotators_by_item = []
+            for item in dataset["items"]:
+                votes = item["labels"]["nli_label"]
+                annotators_by_item.append(set(votes))
+                self.assertEqual(Counter(votes.values()), Counter(source_counts[item["id"]]))
+            self.assertTrue(annotators_by_item[0].isdisjoint(annotators_by_item[1]))
+
+            out_dir = temp_path / "run"
+            for tool in ("disagreement.py", "soft_labels.py", "resolution.py"):
+                subprocess.run(
+                    [
+                        sys.executable,
+                        str(ROOT / tool),
+                        "--data",
+                        str(labels_path),
+                        "--out",
+                        str(out_dir),
+                    ],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+
+            triage = _load_json(out_dir / "triage.json")
+            soft = {
+                record["item_id"]: record
+                for record in _load_jsonl(out_dir / "soft_labels.jsonl")
+            }
+            for cell in triage["cells"]:
+                counts = source_counts[cell["item"]]
+                total = sum(counts.values())
+                expected = {
+                    label: count / total
+                    for label, count in counts.items()
+                    if count
+                }
+                entropy = -sum(
+                    probability * math.log2(probability)
+                    for probability in expected.values()
+                )
+                self.assertEqual(soft[cell["item"]]["soft_label"], expected)
+                self.assertAlmostEqual(cell["entropy_bits"], entropy, places=3)
+                self.assertFalse(cell["value_fork"])
+            records = _load_jsonl(out_dir / "resolution_records.jsonl")
+            self.assertEqual(len(records), len(source))
+            self.assertTrue(
+                all(record["measures"]["geometry_gap"] is None for record in records)
+            )
+
+    def test_bad_counter_and_duplicate_uid_are_rejected(self):
+        source = _load_jsonl(self.FIXTURE)
+        cases = []
+        bad_counter = copy.deepcopy(source[:1])
+        bad_counter[0]["label_counter"] = {"e": 4, "1": 6}
+        cases.append((bad_counter, "mixes or uses unsupported labels"))
+        duplicate = copy.deepcopy(source)
+        duplicate[1]["uid"] = duplicate[0]["uid"]
+        cases.append((duplicate, "repeats uid"))
+
+        with tempfile.TemporaryDirectory(prefix="groundless-chaosnli-bad-") as temp:
+            temp_path = Path(temp)
+            for index, (rows, expected) in enumerate(cases):
+                input_path = temp_path / "bad-{}.jsonl".format(index)
+                output_path = temp_path / "out-{}.json".format(index)
+                input_path.write_text(
+                    "".join(json.dumps(row) + "\n" for row in rows),
+                    encoding="utf-8",
+                )
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(self.ADAPTER),
+                        str(input_path),
+                        "--out",
+                        str(output_path),
+                    ],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+                with self.subTest(case=index):
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(expected, result.stderr)
+                    self.assertFalse(output_path.exists())
+
+    @unittest.skipUnless(_HAS_JSONSCHEMA, "jsonschema is not installed")
+    def test_converted_fixture_matches_the_input_schema(self):
+        with tempfile.TemporaryDirectory(prefix="groundless-chaosnli-schema-") as temp:
+            labels_path = self._convert(Path(temp))
+            schema = _load_json(ROOT / "schema" / "labels.schema.json")
+            Draft202012Validator.check_schema(schema)
+            Draft202012Validator(schema).validate(_load_json(labels_path))
 
 
 class GovernanceClaims(unittest.TestCase):
