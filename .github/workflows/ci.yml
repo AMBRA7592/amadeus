@@ -45,6 +45,11 @@ jobs:
           with open("schema/resolution_record.schema.json", encoding="utf-8") as f:
               schema = json.load(f)
           Draft202012Validator.check_schema(schema)
+          with open("schema/labels.schema.json", encoding="utf-8") as f:
+              labels_schema = json.load(f)
+          Draft202012Validator.check_schema(labels_schema)
+          with open("data/labels.json", encoding="utf-8") as f:
+              Draft202012Validator(labels_schema).validate(json.load(f))
           validator = Draft202012Validator(schema, format_checker=FormatChecker())
           validator.validate(schema["examples"][0])
           with open("resolution_records.jsonl", encoding="utf-8") as f:
@@ -52,7 +57,7 @@ jobs:
           assert len(records) == 18, len(records)
           for record in records:
               validator.validate(record)
-          print("schema valid; example valid; 18 emitted records valid")
+          print("input schema/data valid; resolution schema/example/18 records valid")
           PY
       - name: Verified-claims suite (stdlib only)
         run: python3 -m unittest test_claims -v

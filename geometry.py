@@ -25,6 +25,10 @@ The operator's new quantity: the GEOMETRY GAP, the divergence between the
 cross-entropy target and the metric-respecting centre. When it is large on a
 structured axis, "ship the soft label" is underspecified and the choice of loss
 is a governance decision. No third-party deps (Python 3.8+). Run: python3 geometry.py
+
+This proof/illustration is intentionally pinned to data/labels.json: its printed
+narrative names the demo's cohorts, ribbon, and 4-4 forks. For arbitrary
+annotations use disagreement.py, soft_labels.py, and resolution.py with --data.
 """
 
 import json

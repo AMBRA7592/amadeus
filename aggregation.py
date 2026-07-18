@@ -26,6 +26,10 @@ rhetoric and becomes arithmetic you can re-run.
                   stops finding truth and starts amplifying the dominant norm
                   with rising, false confidence.             -> "get more labels".
 
+This proof/illustration is intentionally pinned to data/labels.json: its printed
+narrative names the demo's cohorts, ribbon, and 4-4 forks. For arbitrary
+annotations use disagreement.py, soft_labels.py, and resolution.py with --data.
+
 No third-party dependencies (stdlib only; Python 3.8+). Run: python3 aggregation.py
 """
 

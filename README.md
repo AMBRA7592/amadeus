@@ -36,12 +36,14 @@ why the rule is never neutral, and the schema is the record.
 | `topology.py` | **Proof + diagnostic.** Shows the circle obstruction (Chichilnisky) and curl obstruction (Hodge), then applies an explicitly heuristic, thresholded camp complex to the demo votes. That diagnostic detects two disconnected cohort cores for the fork (`b₀=2`); it is not presented as a reconstruction of the theorem's preference space. |
 | `geometry.py` | **Proof.** Runs the information-geometry centres on the same data: cross-entropy = the arithmetic centre, which on an ordered axis is bimodal where every metric-aware centre is central (gap 0.70 TV); prints a per-cell "geometry gap" so the choice of loss stops being a silent default. |
 | `data/labels.json` | A tiny hand-built annotation set modeled on the scenario this repo grew out of: AI-generated editorial portraits, 8 annotators in 2 normative cohorts, 3 questions each. The source images are deliberately not distributed; each `desc` is their public stand-in. |
+| [`data/README.md`](data/README.md) | **Bring your own data.** The input contract, a minimal example, and runnable conversion recipes for Label Studio JSON and wide CSV. |
 | [`the-aggregation-theorem.md`](the-aggregation-theorem.md) | **The proof the argument didn't claim.** Social choice theory (Arrow 1951, May 1952, Condorcet 1785) already settled the thesis — and drew the exact line the triage draws by hand. Companion to the argument. |
 | [`the-frustrated-label.md`](the-frustrated-label.md) | **The physics one layer down.** A crowd has no ground truth for the same reason a spin glass has no ground state (Parisi, Nobel 2021). The soft label is a Gibbs state at finite temperature; majority vote is the T→0 quench; model collapse is the second law applied to values. |
 | [`the-topological-label.md`](the-topological-label.md) | **The shape underneath both.** Aggregation is possible iff the preference space is contractible (Chichilnisky). A reward model is a potential a value fork forbids (it has curl: H¹≠0). Baryshnikov: Arrow = this hole. Closes the triptych. |
 | [`the-geometric-label.md`](the-geometric-label.md) | **The constructive turn (not a fourth impossibility).** Given you keep the cloud — *which* cloud? On the curved (Fisher) simplex the KL, Fisher–Rao, and Wasserstein centres disagree, and cross-entropy silently picks one. A computable "geometry gap" + a decision: choose the loss to match the label's semantics. |
 | `resolution.py` | **Record emitter.** Joins the diagnostic, trainer export, governance state, and declared policy into one schema-conformant resolution record per cell. Writes `resolution_records.jsonl`; pending value forks remain escalated rather than pretending an owner has decided them. |
 | [`schema/resolution_record.schema.json`](schema/resolution_record.schema.json) | **The record — what the whole argument produces.** A canonical record of one aggregation act: input judgements + reasons, the aggregation/tie-break rule, the loss/geometry, computed measures, the policy version + authority + owner, the disposition + conditions, and a deterministic replay-input hash. The hash covers evidence, rule, and policy version; it does not attest a later human choice. |
+| [`schema/labels.schema.json`](schema/labels.schema.json) | JSON Schema for annotation input accepted by the three operational tools; the tools add zero-dependency referential-integrity checks. |
 
 ### Run it (three steps, zero dependencies, Python 3.8+)
 
@@ -55,6 +57,23 @@ python3 frustration.py      # (optional) the physics under the thesis: the label
 python3 topology.py         # (optional) the shape under the thesis: aggregation fails iff preference space has a hole
 python3 geometry.py         # (optional) the constructive turn: which centre of the cloud? (your loss already chose)
 ```
+
+### Run on your own data
+
+Point all three operational stages at the same input and output directory:
+
+```bash
+python3 disagreement.py --data my_labels.json --out out/
+python3 soft_labels.py --data my_labels.json --out out/
+python3 resolution.py --data my_labels.json --out out/
+```
+
+See [`data/README.md`](data/README.md) for the input format and runnable Label
+Studio/wide-CSV conversion recipes; the contract is
+[`schema/labels.schema.json`](schema/labels.schema.json). The three tools accept
+arbitrary conformant annotations. The decision-theory spine and four foundation
+scripts remain intentionally pinned to the bundled demo because their printed
+narratives name its cohorts, ribbon, and 4–4 forks.
 
 The first prints a per-cell triage and a "bill" — how many bits of human
 disagreement a single ground-truth column would erase, and where. The second
