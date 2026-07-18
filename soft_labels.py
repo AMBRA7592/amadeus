@@ -27,11 +27,14 @@ Run AFTER disagreement.py (it consumes triage.json):
     python3 disagreement.py && python3 soft_labels.py
 """
 
+import argparse
 import csv
 import json
 import math
 import os
 from collections import Counter
+
+from disagreement import PIPELINE_EPILOG, load_dataset
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRIAGE = os.path.join(HERE, "triage.json")
@@ -41,6 +44,24 @@ OUT_CSV = os.path.join(HERE, "soft_labels.csv")
 OUT_GOV = os.path.join(HERE, "governance.jsonl")
 
 GATED = {"value_fork", "human_review"}   # routings that contribute 0 usable weight
+
+
+def _parse_args(argv):
+    parser = argparse.ArgumentParser(
+        description=__doc__.strip().splitlines()[0],
+        epilog=PIPELINE_EPILOG,
+    )
+    parser.add_argument(
+        "--data",
+        default=DATA,
+        help="input labels.json (default: the bundled demo dataset)",
+    )
+    parser.add_argument(
+        "--out",
+        default=None,
+        help="directory for generated artifacts (default: current directory)",
+    )
+    return parser.parse_args(argv)
 
 
 def normalize_counts(distribution):
@@ -93,13 +114,21 @@ def load_prior_governance(path):
     return prior
 
 
-def main():
-    if not os.path.exists(TRIAGE):
+def main(argv=None):
+    args = _parse_args(argv)
+    data_path = args.data
+    out_dir = os.path.abspath(args.out or os.getcwd())
+    os.makedirs(out_dir, exist_ok=True)
+    triage_path = os.path.join(out_dir, "triage.json")
+    out_jsonl = os.path.join(out_dir, "soft_labels.jsonl")
+    out_csv = os.path.join(out_dir, "soft_labels.csv")
+    out_gov = os.path.join(out_dir, "governance.jsonl")
+
+    if not os.path.exists(triage_path):
         raise SystemExit("triage.json not found -- run `python3 disagreement.py` first.")
-    with open(TRIAGE) as f:
+    with open(triage_path) as f:
         triage = json.load(f)
-    with open(DATA) as f:
-        questions = json.load(f)["questions"]
+    questions = load_dataset(data_path)["questions"]
 
     records, governance = [], []
     for c in triage["cells"]:
@@ -134,10 +163,10 @@ def main():
                 "decision_recorded": None, "decision_rationale": None,
             })
 
-    with open(OUT_JSONL, "w") as f:
+    with open(out_jsonl, "w") as f:
         for r in records:
             f.write(json.dumps(r) + "\n")
-    with open(OUT_CSV, "w", newline="") as f:
+    with open(out_csv, "w", newline="") as f:
         w = csv.writer(f)
         cols = ["item_id", "question", "routing", "majority_label", "entropy_bits",
                 "training_weight", "n_annotators", "reasons_present",
@@ -146,7 +175,7 @@ def main():
         for r in records:
             w.writerow([r.get(c) if c != "soft_label" else json.dumps(r["soft_label"]) for c in cols])
     # Merge with any prior governance file so owners and decisions survive re-runs.
-    prior = load_prior_governance(OUT_GOV)
+    prior = load_prior_governance(out_gov)
     current_keys = set()
     merged = []
     for g in governance:
@@ -164,7 +193,7 @@ def main():
             p["status"] = "resolved_no_longer_fork"      # is no longer a fork -- keep the audit trail
             merged.append(p)
     governance = merged
-    with open(OUT_GOV, "w") as f:
+    with open(out_gov, "w") as f:
         for g in governance:
             f.write(json.dumps(g) + "\n")
 
@@ -182,11 +211,11 @@ def main():
     print(f"  weight withheld (entropy + held-back + forks)  {len(records) - weight_sum:.2f}")
     print(f"  manufactured-consensus records flagged ....... {sum(r['manufactured_consensus'] for r in records)}")
     print()
-    print(f"  trainer-ready jsonl  -> {os.path.relpath(OUT_JSONL, HERE)}")
-    print(f"  inspection csv       -> {os.path.relpath(OUT_CSV, HERE)}")
+    print(f"  trainer-ready jsonl  -> {os.path.relpath(out_jsonl, out_dir)}")
+    print(f"  inspection csv       -> {os.path.relpath(out_csv, out_dir)}")
     pending = [g for g in governance if g.get("status") == "pending"]
     decided = [g for g in governance if g.get("status") != "pending"]
-    print(f"  governance queue     -> {os.path.relpath(OUT_GOV, HERE)}  "
+    print(f"  governance queue     -> {os.path.relpath(out_gov, out_dir)}  "
           f"({len(pending)} pending, {len(decided)} decided -- merged with prior runs)")
 
     if pending:

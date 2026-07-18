@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/releasecontrol/groundless-truth/main/schema/labels.schema.json",
+  "title": "Groundless Truth labels input",
+  "description": "Input annotations for the disagreement, soft-label, and resolution-record tools. Referential integrity is enforced by the tools' standard-library validation: annotators named in cohorts, votes, and reasons must occur in the top-level annotators array; item questions must match the top-level questions object; binary vote values must be 0 or 1; and categorical vote values must occur in that question's label list.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["questions", "annotators", "cohorts", "items"],
+  "properties": {
+    "_about": {
+      "type": "string"
+    },
+    "questions": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "labels"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["binary", "categorical"]
+          },
+          "labels": {
+            "oneOf": [
+              {
+                "type": "object",
+                "minProperties": 1,
+                "additionalProperties": { "type": "string" }
+              },
+              {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "type": "string" }
+              }
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": { "type": { "const": "binary" } },
+              "required": ["type"]
+            },
+            "then": {
+              "properties": { "labels": { "type": "object" } }
+            }
+          },
+          {
+            "if": {
+              "properties": { "type": { "const": "categorical" } },
+              "required": ["type"]
+            },
+            "then": {
+              "properties": { "labels": { "type": "array" } }
+            }
+          }
+        ]
+      }
+    },
+    "annotators": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "cohorts": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": { "type": "string", "minLength": 1 }
+      }
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "labels"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "desc": {
+            "type": "string"
+          },
+          "labels": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": ["integer", "string"]
+              }
+            }
+          },
+          "reasons": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

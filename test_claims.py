@@ -670,6 +670,182 @@ class GeometryClaims(unittest.TestCase):
         self.assertIn("**undefined**, not `0.500`", essay)
 
 
+class BringYourOwnDataClaims(unittest.TestCase):
+    TOOLS = ("disagreement.py", "soft_labels.py", "resolution.py")
+
+    def test_default_output_is_the_callers_working_directory(self):
+        with tempfile.TemporaryDirectory(prefix="groundless-default-out-") as temp:
+            caller_dir = Path(temp)
+            for tool in self.TOOLS:
+                subprocess.run(
+                    [sys.executable, str(ROOT / tool)],
+                    cwd=str(caller_dir),
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+
+            self.assertTrue((caller_dir / "triage.json").is_file())
+            self.assertTrue((caller_dir / "soft_labels.jsonl").is_file())
+            self.assertTrue((caller_dir / "soft_labels.csv").is_file())
+            self.assertTrue((caller_dir / "governance.jsonl").is_file())
+            self.assertEqual(
+                len(_load_jsonl(caller_dir / "resolution_records.jsonl")),
+                18,
+            )
+
+    def test_data_and_out_round_trip(self):
+        with tempfile.TemporaryDirectory(prefix="groundless-byod-") as temp:
+            temp_path = Path(temp)
+            data_path = temp_path / "inputs" / "custom-labels.json"
+            out_dir = temp_path / "generated"
+            caller_dir = temp_path / "caller"
+            data_path.parent.mkdir()
+            caller_dir.mkdir()
+            shutil.copy2(str(ROOT / "data" / "labels.json"), str(data_path))
+
+            for tool in self.TOOLS:
+                subprocess.run(
+                    [
+                        sys.executable,
+                        str(ROOT / tool),
+                        "--data",
+                        str(data_path),
+                        "--out",
+                        str(out_dir),
+                    ],
+                    cwd=str(caller_dir),
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+
+            self.assertTrue((out_dir / "triage.json").is_file())
+            self.assertTrue((out_dir / "soft_labels.jsonl").is_file())
+            self.assertTrue((out_dir / "soft_labels.csv").is_file())
+            self.assertTrue((out_dir / "governance.jsonl").is_file())
+            self.assertTrue((out_dir / "resolution_records.jsonl").is_file())
+            self.assertEqual(list(caller_dir.iterdir()), [])
+
+            byod_triage = _load_json(out_dir / "triage.json")
+            no_arg_triage = _pipeline()["triage"]
+            self.assertEqual(len(byod_triage["cells"]), 18)
+            self.assertEqual(
+                Counter(cell["verdict"] for cell in byod_triage["cells"]),
+                Counter(cell["verdict"] for cell in no_arg_triage["cells"]),
+            )
+            self.assertEqual(len(_load_jsonl(out_dir / "resolution_records.jsonl")), 18)
+
+    def test_bad_inputs_are_rejected_with_specific_messages(self):
+        cases = []
+        missing_questions = copy.deepcopy(DATASET)
+        del missing_questions["questions"]
+        cases.append((missing_questions, "missing required field(s): questions"))
+
+        unknown_annotator = copy.deepcopy(DATASET)
+        unknown_annotator["items"][0]["labels"]["explicit"]["ghost"] = 0
+        cases.append((unknown_annotator, "references unknown annotator(s): ghost"))
+
+        with tempfile.TemporaryDirectory(prefix="groundless-bad-input-") as temp:
+            temp_path = Path(temp)
+            for index, (dataset, expected) in enumerate(cases):
+                data_path = temp_path / "bad-{}.json".format(index)
+                data_path.write_text(json.dumps(dataset), encoding="utf-8")
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(ROOT / "disagreement.py"),
+                        "--data",
+                        str(data_path),
+                        "--out",
+                        str(temp_path / "out-{}".format(index)),
+                    ],
+                    cwd=str(temp_path),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+                with self.subTest(case=index):
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("labels.json:", result.stderr)
+                    self.assertIn(expected, result.stderr)
+
+    def test_single_cohort_input_reaches_resolution(self):
+        dataset = {
+            "questions": {
+                "sentiment": {
+                    "type": "binary",
+                    "labels": {"0": "negative", "1": "positive"},
+                }
+            },
+            "annotators": ["ann-a", "ann-b"],
+            "cohorts": {"all": ["ann-a", "ann-b"]},
+            "items": [
+                {
+                    "id": "case-1",
+                    "labels": {"sentiment": {"ann-a": 1, "ann-b": 0}},
+                },
+                {
+                    "id": "case-2",
+                    "labels": {"sentiment": {"ann-a": 0, "ann-b": 0}},
+                },
+            ],
+        }
+        with tempfile.TemporaryDirectory(prefix="groundless-one-cohort-") as temp:
+            temp_path = Path(temp)
+            data_path = temp_path / "labels.json"
+            out_dir = temp_path / "out"
+            data_path.write_text(json.dumps(dataset), encoding="utf-8")
+            for tool in self.TOOLS:
+                subprocess.run(
+                    [
+                        sys.executable,
+                        str(ROOT / tool),
+                        "--data",
+                        str(data_path),
+                        "--out",
+                        str(out_dir),
+                    ],
+                    cwd=str(temp_path),
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+            records = _load_jsonl(out_dir / "resolution_records.jsonl")
+            self.assertEqual(len(records), 2)
+            self.assertTrue(
+                all(record["measures"]["geometry_gap"] is None for record in records)
+            )
+
+    def test_cli_help_and_demo_pinned_proofs(self):
+        for tool in self.TOOLS:
+            result = subprocess.run(
+                [sys.executable, str(ROOT / tool), "--help"],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            with self.subTest(tool=tool):
+                self.assertIn("--data", result.stdout)
+                self.assertIn("--out", result.stdout)
+                self.assertIn("same --data and --out", result.stdout)
+
+        for proof in (
+            "aggregation.py",
+            "frustration.py",
+            "topology.py",
+            "geometry.py",
+            "bayes_optimal.py",
+        ):
+            source = (ROOT / proof).read_text(encoding="utf-8")
+            with self.subTest(proof=proof):
+                self.assertIn("intentionally pinned to data/labels.json", source)
+
+
 class ResolutionClaims(unittest.TestCase):
     def test_records_hashes_structure_and_decision_guards(self):
         pipeline = _pipeline()
@@ -757,6 +933,10 @@ class ResolutionClaims(unittest.TestCase):
         validator.validate(schema["examples"][0])
         for record in _pipeline()["records"]:
             validator.validate(record)
+
+        labels_schema = _load_json(ROOT / "schema" / "labels.schema.json")
+        Draft202012Validator.check_schema(labels_schema)
+        Draft202012Validator(labels_schema).validate(DATASET)
 
 
 if __name__ == "__main__":

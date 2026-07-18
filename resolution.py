@@ -17,11 +17,13 @@ inputs changes. It does not attest a later human decision or rationale; those
 remain explicit fields in the record.
 """
 
+import argparse
 import hashlib
 import json
 import os
 from datetime import datetime, timezone
 
+from disagreement import PIPELINE_EPILOG, load_dataset
 from geometry import arithmetic_mean, geometric_mean, tv
 
 
@@ -35,6 +37,24 @@ SCHEMA = os.path.join(HERE, "schema", "resolution_record.schema.json")
 POLICY_VERSION = "groundless-truth-demo-2026.05"
 PRODUCED_BY = "resolution.py (groundless-truth v1.3.0)"
 BAR = "=" * 78
+
+
+def _parse_args(argv):
+    parser = argparse.ArgumentParser(
+        description=__doc__.strip().splitlines()[0],
+        epilog=PIPELINE_EPILOG,
+    )
+    parser.add_argument(
+        "--data",
+        default=DATA,
+        help="input labels.json (default: the bundled demo dataset)",
+    )
+    parser.add_argument(
+        "--out",
+        default=None,
+        help="directory for generated artifacts (default: current directory)",
+    )
+    return parser.parse_args(argv)
 
 
 def load_jsonl(path):
@@ -90,10 +110,15 @@ def cohort_distribution(item, question, members):
 
 
 def geometry_gap(item, question, cohorts):
-    a = cohort_distribution(item, question, cohorts["A"])
-    b = cohort_distribution(item, question, cohorts["B"])
-    arithmetic = arithmetic_mean([a, b])
-    geometric = geometric_mean([a, b])
+    distributions = [
+        cohort_distribution(item, question, members)
+        for members in cohorts.values()
+    ]
+    distributions = [distribution for distribution in distributions if distribution]
+    if len(distributions) < 2:
+        return None
+    arithmetic = arithmetic_mean(distributions)
+    geometric = geometric_mean(distributions)
     if geometric is None:
         return None
     return round(tv(arithmetic, geometric), 3)
@@ -256,26 +281,35 @@ def utc_timestamp():
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def main():
-    required = [DATA, TRIAGE, SOFT_LABELS, GOVERNANCE]
-    missing = [os.path.relpath(path, HERE) for path in required if not os.path.exists(path)]
+def main(argv=None):
+    args = _parse_args(argv)
+    data_path = args.data
+    out_dir = os.path.abspath(args.out or os.getcwd())
+    os.makedirs(out_dir, exist_ok=True)
+    triage_path = os.path.join(out_dir, "triage.json")
+    soft_labels_path = os.path.join(out_dir, "soft_labels.jsonl")
+    governance_path = os.path.join(out_dir, "governance.jsonl")
+    output_path = os.path.join(out_dir, "resolution_records.jsonl")
+    required = [data_path, triage_path, soft_labels_path, governance_path]
+    missing = [
+        os.path.relpath(path, out_dir) for path in required if not os.path.exists(path)
+    ]
     if missing:
         raise SystemExit(
             "missing prerequisite(s): " + ", ".join(missing)
             + " -- run disagreement.py and soft_labels.py first"
         )
-    with open(DATA, encoding="utf-8") as f:
-        ds = json.load(f)
-    with open(TRIAGE, encoding="utf-8") as f:
+    ds = load_dataset(data_path)
+    with open(triage_path, encoding="utf-8") as f:
         triage = json.load(f)
     records = build_records(
         ds,
         triage,
-        load_jsonl(SOFT_LABELS),
-        load_jsonl(GOVERNANCE),
+        load_jsonl(soft_labels_path),
+        load_jsonl(governance_path),
         utc_timestamp(),
     )
-    with open(OUTPUT, "w", encoding="utf-8") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         for record in records:
             f.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
 
@@ -296,7 +330,7 @@ def main():
     print(f"  value forks still awaiting an owner ...... {pending_forks}")
     print("  replay hash: canonical SHA-256 over {input, rule, policy_version}")
     print("  (identifies replay inputs; it does not attest a later human decision)")
-    print(f"\n  auditable records -> {os.path.relpath(OUTPUT, HERE)}")
+    print(f"\n  auditable records -> {os.path.relpath(output_path, out_dir)}")
     print(f"  schema            -> {os.path.relpath(SCHEMA, HERE)} (CI validates)")
 
 

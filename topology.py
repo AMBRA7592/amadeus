@@ -24,6 +24,10 @@ answer: it is impossible exactly when the space of preferences has a HOLE.
                        function fits it, and the model must cut the space
                        somewhere arbitrary (a dictator = a topological defect).
 
+This proof/illustration is intentionally pinned to data/labels.json: its printed
+narrative names the demo's cohorts, ribbon, and 4-4 forks. For arbitrary
+annotations use disagreement.py, soft_labels.py, and resolution.py with --data.
+
 This script runs all three against data/labels.json and the canonical examples.
 No third-party dependencies (stdlib only; Python 3.8+). Run: python3 topology.py
 """
