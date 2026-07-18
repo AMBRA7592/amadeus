@@ -31,6 +31,7 @@ why the rule is never neutral, and the schema is the record.
 | [`the-bayes-optimal-label.md`](the-bayes-optimal-label.md) | **The decision-theoretic spine.** A label is a Bayes action, not ground truth: under log loss the optimal prediction is the whole distribution (Thm 1); under 0–1 loss it is the mode (Thm 2); under a cost model with a *review* option, the optimal action at a value fork is review, not a label (Thm 5). Concedes majority vote is correct in its one regime and proves where it ends. Read after the argument. |
 | `disagreement.py` | **Diagnostic.** Instead of majority vote: keeps the distribution, separates genuine *variation* from likely *error*, flags value forks and manufactured consensus, prices what the collapse to one label destroys. Writes `triage.json`. |
 | `soft_labels.py` | **Operational.** Turns the triage into things a trainer consumes: per-cell soft labels + entropy-derived weights (`soft_labels.jsonl`), and a governance queue of value forks awaiting a named human owner (`governance.jsonl`). |
+| `govern.py` | **Decision CLI.** Lists the governance queue and atomically records a named owner's decision, rationale, and timestamp before resolution records are emitted. |
 | `aggregation.py` | **Proof.** Runs Arrow, May, and the Condorcet Jury Theorem against the same `data/labels.json`: the ribbon's "fact" flips with the aggregation rule, both 4–4 forks are decided by alphabetical order, and "get more labels" is shown to backfire under a shared norm. |
 | `frustration.py` | **Proof.** Runs the spin-glass mapping on the same data: majority vote shown as a zero-temperature quench (and the bits it destroys), and an inferred-Ising ground state that recovers the two cohorts from votes alone (fact = ferromagnet, value fork = antiferromagnet, cyclic disagreement = spin glass). |
 | `topology.py` | **Proof + diagnostic.** Shows the circle obstruction (Chichilnisky) and curl obstruction (Hodge), then applies an explicitly heuristic, thresholded camp complex to the demo votes. That diagnostic detects two disconnected cohort cores for the fork (`b₀=2`); it is not presented as a reconstruction of the theorem's preference space. |
@@ -45,12 +46,14 @@ why the rule is never neutral, and the schema is the record.
 | [`schema/resolution_record.schema.json`](schema/resolution_record.schema.json) | **The record — what the whole argument produces.** A canonical record of one aggregation act: input judgements + reasons, the aggregation/tie-break rule, the loss/geometry, computed measures, the policy version + authority + owner, the disposition + conditions, and a deterministic replay-input hash. The hash covers evidence, rule, and policy version; it does not attest a later human choice. |
 | [`schema/labels.schema.json`](schema/labels.schema.json) | JSON Schema for annotation input accepted by the three operational tools; the tools add zero-dependency referential-integrity checks. |
 
-### Run it (three steps, zero dependencies, Python 3.8+)
+### Run it (zero dependencies, Python 3.8+)
 
 ```bash
 python3 disagreement.py     # diagnose -> triage.json
 python3 soft_labels.py      # operationalize -> soft_labels.jsonl + governance.jsonl
-python3 resolution.py       # record -> resolution_records.jsonl (run after the first two)
+python3 govern.py list      # inspect pending value forks
+# optional: python3 govern.py decide --item ID --question Q --owner OWNER --decision LABEL --rationale WHY
+python3 resolution.py       # record -> resolution_records.jsonl (after export/optional decision)
 python3 bayes_optimal.py    # (optional) the decision-theoretic spine: a label is a Bayes action, not ground truth
 python3 aggregation.py      # (optional) the theorem under the thesis: social choice theory on the same data
 python3 frustration.py      # (optional) the physics under the thesis: the label as a frustrated (spin-glass) system
@@ -60,11 +63,14 @@ python3 geometry.py         # (optional) the constructive turn: which centre of 
 
 ### Run on your own data
 
-Point all three operational stages at the same input and output directory:
+Point all three data-processing stages at the same input and output directory;
+inspect or decide the governance queue between export and resolution:
 
 ```bash
 python3 disagreement.py --data my_labels.json --out out/
 python3 soft_labels.py --data my_labels.json --out out/
+python3 govern.py list --out out/
+# optional: python3 govern.py decide --item ID --question Q --owner OWNER --decision LABEL --rationale WHY --out out/
 python3 resolution.py --data my_labels.json --out out/
 ```
 
@@ -79,10 +85,11 @@ The first prints a per-cell triage and a "bill" — how many bits of human
 disagreement a single ground-truth column would erase, and where. The second
 emits trainer-ready records and, crucially, a `governance.jsonl` **queue**: every
 value fork the pipeline would otherwise resolve silently, held open until a named
-human records a decision and a rationale. The third writes the repository's
-fourth object: one auditable resolution record per cell.
+human records a decision and a rationale. `govern.py` closes that loop explicitly;
+the final stage writes the repository's fourth object, one auditable resolution
+record per cell.
 
-The full arc: **diagnostic → triage → trainer-ready export → governance queue → resolution record.**
+The full arc: **diagnostic → triage → trainer-ready export → governance queue → named decision → resolution record.**
 Generated files (`triage.json`, `soft_labels.*`, `resolution_records.jsonl`) are
 git-ignored; reproduce them by running the three scripts. `governance.jsonl` is the exception in spirit: the
 exporter *merges* with any existing copy, preserving recorded decisions and owner

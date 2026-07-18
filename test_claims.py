@@ -12,6 +12,7 @@ optional ``jsonschema`` package is importable and otherwise skips cleanly.
 
 import atexit
 import copy
+import hashlib
 import json
 import shutil
 import subprocess
@@ -150,6 +151,7 @@ def _pipeline():
         "triage": _load_json(work / "triage.json"),
         "soft": _load_jsonl(work / "soft_labels.jsonl"),
         "governance": _load_jsonl(work / "governance.jsonl"),
+        "governance_bytes": (work / "governance.jsonl").read_bytes(),
         "records": first_records,
         "first_hashes": first_hashes,
         "second_hashes": second_hashes,
@@ -844,6 +846,214 @@ class BringYourOwnDataClaims(unittest.TestCase):
             source = (ROOT / proof).read_text(encoding="utf-8")
             with self.subTest(proof=proof):
                 self.assertIn("intentionally pinned to data/labels.json", source)
+
+
+class GovernanceClaims(unittest.TestCase):
+    def _prepare_queue(self, out_dir):
+        for tool in ("disagreement.py", "soft_labels.py"):
+            subprocess.run(
+                [sys.executable, str(ROOT / tool), "--out", str(out_dir)],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+
+    def test_default_governance_bytes_are_pinned(self):
+        digest = hashlib.sha256(_pipeline()["governance_bytes"]).hexdigest()
+        self.assertEqual(
+            digest,
+            "91c1876d468d02694ec302158668e37d7482914be70b5ab6e8611c54cd3a8e2f",
+        )
+
+    def test_decide_reaches_resolution_and_survives_exporter_rerun(self):
+        with tempfile.TemporaryDirectory(prefix="groundless-govern-") as temp:
+            out_dir = Path(temp)
+            self._prepare_queue(out_dir)
+
+            listed = subprocess.run(
+                [sys.executable, str(ROOT / "govern.py"), "list"],
+                cwd=str(out_dir),
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            self.assertIn("img2 / explicit", listed.stdout)
+            self.assertIn("2 pending", listed.stdout)
+
+            command = [
+                sys.executable,
+                str(ROOT / "govern.py"),
+                "decide",
+                "--item",
+                "img2",
+                "--question",
+                "explicit",
+                "--owner",
+                "Safety policy owner",
+                "--decision",
+                "safe",
+                "--rationale",
+                "Use the editorial-context policy.",
+                "--out",
+                str(out_dir),
+            ]
+            subprocess.run(
+                command,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            governance_path = out_dir / "governance.jsonl"
+            decided_queue = governance_path.read_bytes()
+            decision = next(
+                record
+                for record in _load_jsonl(governance_path)
+                if record["item_id"] == "img2" and record["question"] == "explicit"
+            )
+            self.assertEqual(decision["decision_required_from"], "Safety policy owner")
+            self.assertEqual(decision["decision_recorded"], "safe")
+            self.assertEqual(
+                decision["decision_rationale"],
+                "Use the editorial-context policy.",
+            )
+            self.assertEqual(decision["status"], "decided")
+            self.assertTrue(decision["decided_at"].endswith("Z"))
+
+            subprocess.run(
+                [sys.executable, str(ROOT / "resolution.py"), "--out", str(out_dir)],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            resolution_record = next(
+                record
+                for record in _load_jsonl(out_dir / "resolution_records.jsonl")
+                if record["item"] == "img2" and record["question"] == "explicit"
+            )
+            self.assertEqual(resolution_record["disposition"]["outcome"], "decided:safe")
+            self.assertEqual(
+                resolution_record["authority"],
+                {
+                    "decided_by": "named_owner",
+                    "owner": "Safety policy owner",
+                    "policy_version": resolution.POLICY_VERSION,
+                },
+            )
+
+            subprocess.run(
+                [sys.executable, str(ROOT / "soft_labels.py"), "--out", str(out_dir)],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            self.assertEqual(governance_path.read_bytes(), decided_queue)
+            self.assertEqual(
+                next(
+                    record
+                    for record in _load_jsonl(governance_path)
+                    if record["item_id"] == "img2"
+                )["decided_at"],
+                decision["decided_at"],
+            )
+
+            before_overwrite = governance_path.read_bytes()
+            overwrite = subprocess.run(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            self.assertNotEqual(overwrite.returncode, 0)
+            self.assertIn("refusing to overwrite", overwrite.stderr)
+            self.assertEqual(governance_path.read_bytes(), before_overwrite)
+            self.assertEqual(list(out_dir.glob(".governance.*.tmp")), [])
+
+    def test_invalid_decisions_and_corrupt_decided_state_are_rejected(self):
+        with tempfile.TemporaryDirectory(prefix="groundless-govern-invalid-") as temp:
+            out_dir = Path(temp)
+            self._prepare_queue(out_dir)
+            governance_path = out_dir / "governance.jsonl"
+            original = governance_path.read_bytes()
+            cases = (
+                (
+                    "missing",
+                    "explicit",
+                    "Safety policy owner",
+                    "safe",
+                    "reason",
+                    "no queue record",
+                ),
+                ("img2", "explicit", "<owner>", "safe", "reason", "must name"),
+                (
+                    "img2",
+                    "explicit",
+                    "Safety policy owner",
+                    " ",
+                    "reason",
+                    "decision must",
+                ),
+                (
+                    "img2",
+                    "explicit",
+                    "Safety policy owner",
+                    "safe",
+                    " ",
+                    "rationale must",
+                ),
+            )
+            for item, question, owner, decision, rationale, expected in cases:
+                command = [
+                    sys.executable,
+                    str(ROOT / "govern.py"),
+                    "decide",
+                    "--item",
+                    item,
+                    "--question",
+                    question,
+                    "--owner",
+                    owner,
+                    "--decision",
+                    decision,
+                    "--rationale",
+                    rationale,
+                    "--out",
+                    str(out_dir),
+                ]
+                result = subprocess.run(
+                    command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+                with self.subTest(expected=expected):
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(expected, result.stderr)
+                    self.assertEqual(governance_path.read_bytes(), original)
+
+            records = _load_jsonl(governance_path)
+            records[0].update(
+                decision_required_from="<owner>",
+                decision_recorded="safe",
+                decision_rationale="reason",
+                status="decided",
+            )
+            governance_path.write_text(
+                "".join(json.dumps(record) + "\n" for record in records),
+                encoding="utf-8",
+            )
+            corrupt = subprocess.run(
+                [sys.executable, str(ROOT / "govern.py"), "list", "--out", str(out_dir)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            self.assertNotEqual(corrupt.returncode, 0)
+            self.assertIn("has a decision but no named owner", corrupt.stderr)
 
 
 class ResolutionClaims(unittest.TestCase):

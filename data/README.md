@@ -5,13 +5,16 @@ The three operational tools accept this repository's JSON input format:
 ```bash
 python3 disagreement.py --data my_labels.json --out out/
 python3 soft_labels.py --data my_labels.json --out out/
+python3 govern.py list --out out/
+# optional: python3 govern.py decide --item ID --question Q --owner OWNER --decision LABEL --rationale WHY --out out/
 python3 resolution.py --data my_labels.json --out out/
 ```
 
-Use the same `--data` and `--out` values for all three commands. The stages run
-in order: the second consumes `out/triage.json`, and the third consumes the
-triage, soft-label, and governance artifacts already in `out/`. The tools create
-the output directory when needed.
+Use the same `--data` and `--out` values for the three data-processing commands.
+The stages run in order: `soft_labels.py` consumes `out/triage.json`, `govern.py`
+reads or updates `out/governance.jsonl`, and `resolution.py` consumes the triage,
+soft-label, and governance artifacts already in `out/`. The data-processing tools
+create the output directory when needed.
 
 The machine-readable contract is
 [`schema/labels.schema.json`](../schema/labels.schema.json). The tools also run
@@ -267,8 +270,31 @@ Then complete the pipeline with the same paths:
 
 ```bash
 python3 soft_labels.py --data labels.json --out out/
+python3 govern.py list --out out/
 python3 resolution.py --data labels.json --out out/
 ```
+
+If `govern.py list` shows a pending value fork, a named owner can record the
+decision before the resolution step. For example, the bundled demo contains
+the pending `img2 / explicit` fork:
+
+```bash
+python3 govern.py decide \
+  --item img2 \
+  --question explicit \
+  --owner "Safety policy owner" \
+  --decision safe \
+  --rationale "Apply the documented editorial-context policy." \
+  --out out/
+```
+
+For your data, use an item, question, and decision shown by your own queue.
+
+The command atomically updates `out/governance.jsonl`, refuses placeholder
+owners or blank decisions/rationales, and will not overwrite an existing
+decision. Re-running `soft_labels.py` preserves the owner, decision, rationale,
+and `decided_at` timestamp. Run `resolution.py` afterward to emit the resulting
+`decided:<label>` disposition with `named_owner` authority.
 
 ## Cohorts are optional in meaning, but load-bearing in the format
 
