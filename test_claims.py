@@ -15,6 +15,7 @@ import copy
 import hashlib
 import json
 import math
+import random
 import shutil
 import subprocess
 import sys
@@ -25,6 +26,7 @@ from pathlib import Path
 
 import aggregation
 import bayes_optimal
+import disagreement
 import frustration
 import geometry
 import resolution
@@ -207,6 +209,148 @@ class DisagreementClaims(unittest.TestCase):
         for annotator, expected in expected_reliability.items():
             self.assertAlmostEqual(triage["reliability"][annotator], expected, places=12)
         self.assertIn("CONFIDENT cells only", pipeline["output"]["disagreement.py"])
+
+    def test_optimized_reliability_and_cohort_lookup_match_naive_references(self):
+        def naive_cohort_of(annotator, cohorts):
+            return next(
+                (name for name, members in cohorts.items() if annotator in members),
+                None,
+            )
+
+        def naive_reliability(items, struct_by_cell, cohorts):
+            confident_cells = {
+                (cell["item"], cell["question"])
+                for cell in struct_by_cell.values()
+                if not cell["value_fork"]
+                and not cell["no_ground"]
+                and not cell["structured"]
+                and cell["majority_share"] >= disagreement.NEAR_CONSENSUS
+            }
+            hits, total = Counter(), Counter()
+            for item in items:
+                for question, votes in item["labels"].items():
+                    if (item["id"], question) not in confident_cells:
+                        continue
+                    for annotator, label in votes.items():
+                        others = Counter(
+                            vote
+                            for other_annotator, vote in votes.items()
+                            if other_annotator != annotator
+                        )
+                        if not others:
+                            continue
+                        top = max(others.values())
+                        modes = {
+                            candidate
+                            for candidate, count in others.items()
+                            if count == top
+                        }
+                        total[annotator] += 1
+                        hits[annotator] += label in modes
+            return {
+                annotator: (
+                    hits[annotator] / total[annotator]
+                    if total[annotator]
+                    else 1.0
+                )
+                for annotator in total
+            }
+
+        forced_cohorts = {
+            "first": ["ann-0", "ann-1"],
+            "second": ["ann-0", "ann-2"],
+        }
+        forced_index = disagreement.cohort_index(forced_cohorts)
+        self.assertEqual(forced_index["ann-0"], "first")
+        for annotator in ("ann-0", "ann-1", "ann-2", "unknown"):
+            self.assertEqual(
+                disagreement.cohort_of(annotator, forced_index),
+                naive_cohort_of(annotator, forced_cohorts),
+            )
+
+        forced_items = [
+            {
+                "id": "forced",
+                "labels": {
+                    "three_way_tie": {
+                        "ann-0": "x",
+                        "ann-1": "y",
+                        "ann-2": "z",
+                    },
+                    "singleton": {"ann-0": "x"},
+                    "repeated": {
+                        "ann-0": "x",
+                        "ann-1": "x",
+                        "ann-2": "y",
+                    },
+                },
+            }
+        ]
+        forced_structures = {
+            ("forced", question): {
+                "item": "forced",
+                "question": question,
+                "value_fork": False,
+                "no_ground": False,
+                "structured": False,
+                "majority_share": 1.0,
+            }
+            for question in forced_items[0]["labels"]
+        }
+        self.assertEqual(
+            disagreement.reliability(
+                forced_items, forced_structures, forced_cohorts
+            ),
+            naive_reliability(forced_items, forced_structures, forced_cohorts),
+        )
+
+        rng = random.Random(8675309)
+        labels = ("x", "y", "z", "w")
+        for trial in range(250):
+            annotators = [
+                "trial-{}-ann-{}".format(trial, index)
+                for index in range(rng.randint(1, 10))
+            ]
+            cohorts = {}
+            for cohort_number in range(rng.randint(1, 4)):
+                members = [
+                    annotator
+                    for annotator in annotators
+                    if rng.random() < 0.65
+                ]
+                if not members:
+                    members = [rng.choice(annotators)]
+                cohorts["cohort-{}".format(cohort_number)] = members
+            optimized_index = disagreement.cohort_index(cohorts)
+            for annotator in annotators + ["unknown"]:
+                self.assertEqual(
+                    disagreement.cohort_of(annotator, optimized_index),
+                    naive_cohort_of(annotator, cohorts),
+                )
+
+            item = {"id": "trial-{}".format(trial), "labels": {}}
+            structures = {}
+            for question_number in range(rng.randint(1, 5)):
+                question = "q{}".format(question_number)
+                voters = rng.sample(
+                    annotators, rng.randint(1, len(annotators))
+                )
+                item["labels"][question] = {
+                    annotator: rng.choice(labels) for annotator in voters
+                }
+                confident = rng.random() < 0.75
+                structures[(item["id"], question)] = {
+                    "item": item["id"],
+                    "question": question,
+                    "value_fork": False,
+                    "no_ground": False,
+                    "structured": False,
+                    "majority_share": 1.0 if confident else 0.0,
+                }
+            self.assertEqual(
+                disagreement.reliability([item], structures, cohorts),
+                naive_reliability([item], structures, cohorts),
+            )
 
     def test_bill_and_reliability_are_pinned_in_the_essay(self):
         triage = _pipeline()["triage"]

@@ -270,8 +270,17 @@ def unique_plurality(counts):
     return winners[0] if len(winners) == 1 else None
 
 
-def cohort_of(ann, cohorts):
-    return next((name for name, m in cohorts.items() if ann in m), None)
+def cohort_index(cohorts):
+    """Annotator -> first declared cohort, preserving the prior scan semantics."""
+    by_annotator = {}
+    for name, members in cohorts.items():
+        for annotator in members:
+            by_annotator.setdefault(annotator, name)
+    return by_annotator
+
+
+def cohort_of(ann, by_annotator):
+    return by_annotator.get(ann)
 
 
 # --------------------------------------------------------------------------- #
@@ -332,8 +341,12 @@ def reliability(items, struct_by_cell, cohorts):
         for q, votes in it["labels"].items():
             if (it["id"], q) not in confident_cells:
                 continue
+            full = Counter(votes.values())
             for ann, lab in votes.items():
-                others = Counter(v for a, v in votes.items() if a != ann)
+                others = full.copy()
+                others[lab] -= 1
+                if not others[lab]:
+                    del others[lab]
                 if not others:
                     continue
                 top = max(others.values())
@@ -346,14 +359,14 @@ def reliability(items, struct_by_cell, cohorts):
 # --------------------------------------------------------------------------- #
 # pass 3: classify dissents + final verdict
 # --------------------------------------------------------------------------- #
-def classify(s, votes, rel, cohorts):
+def classify(s, votes, rel, by_annotator):
     maj = s["majority_vote"]
     dissents = []
     for ann, lab in votes.items():
         if str(lab) == maj and not s["tie"]:
             continue
         shared = s["counts"][lab]
-        coh = cohort_of(ann, cohorts)
+        coh = cohort_of(ann, by_annotator)
         cohort_backed = s["cohort_majorities"].get(coh) == str(lab) and s["value_fork"]
         if shared >= 2 or cohort_backed:
             kind = "variation"                       # coherent bloc -> signal
@@ -387,6 +400,7 @@ def main(argv=None):
     os.makedirs(out_dir, exist_ok=True)
     ds = load_dataset(data_path)
     items, cohorts, questions = ds["items"], ds["cohorts"], ds["questions"]
+    by_annotator = cohort_index(cohorts)
 
     struct_by_cell = {(it["id"], q): structure(it, q, it["labels"][q], cohorts)
                       for it in items for q in questions}
@@ -396,7 +410,9 @@ def main(argv=None):
     for it in items:
         for q in questions:
             s = struct_by_cell[(it["id"], q)]
-            verdict, manufactured, dissents = classify(s, it["labels"][q], rel, cohorts)
+            verdict, manufactured, dissents = classify(
+                s, it["labels"][q], rel, by_annotator
+            )
             s.update(verdict=verdict, manufactured_consensus=manufactured,
                      dissents=dissents)
             cells.append(s)
