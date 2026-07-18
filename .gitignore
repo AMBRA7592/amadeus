@@ -9,3 +9,6 @@ reports/chaosnli/work/
 reports/chaosnli/source/
 reports/chaosnli/*.zip
 reports/chaosnli/chaosNLI_*.jsonl
+reports/mhs/source/
+reports/mhs/work/
+reports/mhs/*.parquet
