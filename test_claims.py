@@ -15,6 +15,7 @@ import copy
 import hashlib
 import json
 import math
+import random
 import shutil
 import subprocess
 import sys
@@ -25,10 +26,12 @@ from pathlib import Path
 
 import aggregation
 import bayes_optimal
+import disagreement
 import frustration
 import geometry
 import resolution
 import topology
+from adapters import chaosnli as chaosnli_adapter
 
 try:
     from jsonschema import Draft202012Validator, FormatChecker
@@ -206,6 +209,148 @@ class DisagreementClaims(unittest.TestCase):
         for annotator, expected in expected_reliability.items():
             self.assertAlmostEqual(triage["reliability"][annotator], expected, places=12)
         self.assertIn("CONFIDENT cells only", pipeline["output"]["disagreement.py"])
+
+    def test_optimized_reliability_and_cohort_lookup_match_naive_references(self):
+        def naive_cohort_of(annotator, cohorts):
+            return next(
+                (name for name, members in cohorts.items() if annotator in members),
+                None,
+            )
+
+        def naive_reliability(items, struct_by_cell, cohorts):
+            confident_cells = {
+                (cell["item"], cell["question"])
+                for cell in struct_by_cell.values()
+                if not cell["value_fork"]
+                and not cell["no_ground"]
+                and not cell["structured"]
+                and cell["majority_share"] >= disagreement.NEAR_CONSENSUS
+            }
+            hits, total = Counter(), Counter()
+            for item in items:
+                for question, votes in item["labels"].items():
+                    if (item["id"], question) not in confident_cells:
+                        continue
+                    for annotator, label in votes.items():
+                        others = Counter(
+                            vote
+                            for other_annotator, vote in votes.items()
+                            if other_annotator != annotator
+                        )
+                        if not others:
+                            continue
+                        top = max(others.values())
+                        modes = {
+                            candidate
+                            for candidate, count in others.items()
+                            if count == top
+                        }
+                        total[annotator] += 1
+                        hits[annotator] += label in modes
+            return {
+                annotator: (
+                    hits[annotator] / total[annotator]
+                    if total[annotator]
+                    else 1.0
+                )
+                for annotator in total
+            }
+
+        forced_cohorts = {
+            "first": ["ann-0", "ann-1"],
+            "second": ["ann-0", "ann-2"],
+        }
+        forced_index = disagreement.cohort_index(forced_cohorts)
+        self.assertEqual(forced_index["ann-0"], "first")
+        for annotator in ("ann-0", "ann-1", "ann-2", "unknown"):
+            self.assertEqual(
+                disagreement.cohort_of(annotator, forced_index),
+                naive_cohort_of(annotator, forced_cohorts),
+            )
+
+        forced_items = [
+            {
+                "id": "forced",
+                "labels": {
+                    "three_way_tie": {
+                        "ann-0": "x",
+                        "ann-1": "y",
+                        "ann-2": "z",
+                    },
+                    "singleton": {"ann-0": "x"},
+                    "repeated": {
+                        "ann-0": "x",
+                        "ann-1": "x",
+                        "ann-2": "y",
+                    },
+                },
+            }
+        ]
+        forced_structures = {
+            ("forced", question): {
+                "item": "forced",
+                "question": question,
+                "value_fork": False,
+                "no_ground": False,
+                "structured": False,
+                "majority_share": 1.0,
+            }
+            for question in forced_items[0]["labels"]
+        }
+        self.assertEqual(
+            disagreement.reliability(
+                forced_items, forced_structures, forced_cohorts
+            ),
+            naive_reliability(forced_items, forced_structures, forced_cohorts),
+        )
+
+        rng = random.Random(8675309)
+        labels = ("x", "y", "z", "w")
+        for trial in range(250):
+            annotators = [
+                "trial-{}-ann-{}".format(trial, index)
+                for index in range(rng.randint(1, 10))
+            ]
+            cohorts = {}
+            for cohort_number in range(rng.randint(1, 4)):
+                members = [
+                    annotator
+                    for annotator in annotators
+                    if rng.random() < 0.65
+                ]
+                if not members:
+                    members = [rng.choice(annotators)]
+                cohorts["cohort-{}".format(cohort_number)] = members
+            optimized_index = disagreement.cohort_index(cohorts)
+            for annotator in annotators + ["unknown"]:
+                self.assertEqual(
+                    disagreement.cohort_of(annotator, optimized_index),
+                    naive_cohort_of(annotator, cohorts),
+                )
+
+            item = {"id": "trial-{}".format(trial), "labels": {}}
+            structures = {}
+            for question_number in range(rng.randint(1, 5)):
+                question = "q{}".format(question_number)
+                voters = rng.sample(
+                    annotators, rng.randint(1, len(annotators))
+                )
+                item["labels"][question] = {
+                    annotator: rng.choice(labels) for annotator in voters
+                }
+                confident = rng.random() < 0.75
+                structures[(item["id"], question)] = {
+                    "item": item["id"],
+                    "question": question,
+                    "value_fork": False,
+                    "no_ground": False,
+                    "structured": False,
+                    "majority_share": 1.0 if confident else 0.0,
+                }
+            self.assertEqual(
+                disagreement.reliability([item], structures, cohorts),
+                naive_reliability([item], structures, cohorts),
+            )
 
     def test_bill_and_reliability_are_pinned_in_the_essay(self):
         triage = _pipeline()["triage"]
@@ -940,14 +1085,21 @@ class ChaosNLIAdapterClaims(unittest.TestCase):
                 self.assertIn(caveat, about)
 
             self.assertEqual(len(dataset["items"]), len(source))
-            self.assertEqual(len(dataset["annotators"]), 20)
+            self.assertEqual(len(dataset["annotators"]), 70)
             self.assertEqual(dataset["cohorts"], {"crowd": dataset["annotators"]})
             annotators_by_item = []
             for item in dataset["items"]:
                 votes = item["labels"]["nli_label"]
                 annotators_by_item.append(set(votes))
                 self.assertEqual(Counter(votes.values()), Counter(source_counts[item["id"]]))
-            self.assertTrue(annotators_by_item[0].isdisjoint(annotators_by_item[1]))
+            for index, annotators in enumerate(annotators_by_item):
+                self.assertTrue(
+                    annotators.isdisjoint(
+                        set().union(*annotators_by_item[:index])
+                        if index
+                        else set()
+                    )
+                )
 
             out_dir = temp_path / "run"
             for tool in ("disagreement.py", "soft_labels.py", "resolution.py"):
@@ -991,6 +1143,145 @@ class ChaosNLIAdapterClaims(unittest.TestCase):
             self.assertTrue(
                 all(record["measures"]["geometry_gap"] is None for record in records)
             )
+
+    def test_shards_cover_fixture_exactly_and_reject_corruption(self):
+        source = _load_jsonl(self.FIXTURE)
+        source_uids = [record["uid"] for record in source]
+        with tempfile.TemporaryDirectory(prefix="groundless-chaosnli-shards-") as temp:
+            temp_path = Path(temp)
+            manifests = []
+            shard_uids = []
+            for index in range(3):
+                output = temp_path / "shard-{}.json".format(index)
+                subprocess.run(
+                    [
+                        sys.executable,
+                        str(self.ADAPTER),
+                        str(self.FIXTURE),
+                        "--shard-index",
+                        str(index),
+                        "--shard-count",
+                        "3",
+                        "--out",
+                        str(output),
+                    ],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+                manifest = _load_json(Path(str(output) + ".manifest.json"))
+                manifests.append(manifest)
+                shard_uids.append(manifest["uids"])
+
+            self.assertEqual([len(uids) for uids in shard_uids], [2, 2, 3])
+            self.assertEqual(
+                [uid for uids in shard_uids for uid in uids], source_uids
+            )
+            self.assertEqual(
+                len({uid for uids in shard_uids for uid in uids}), len(source_uids)
+            )
+            aggregate = chaosnli_adapter.aggregate_shard_manifests(
+                manifests, source_uids
+            )
+            self.assertEqual(aggregate["record_count"], 7)
+            self.assertEqual(aggregate["uids"], source_uids)
+
+            duplicate = copy.deepcopy(manifests)
+            duplicate[1]["uids"][0] = duplicate[0]["uids"][-1]
+            duplicate[1]["uid_first"] = duplicate[1]["uids"][0]
+            duplicate[1]["uids_sha256"] = chaosnli_adapter._uids_sha256(
+                duplicate[1]["uids"]
+            )
+            with self.assertRaisesRegex(
+                chaosnli_adapter.ManifestError, "duplicate uid"
+            ):
+                chaosnli_adapter.aggregate_shard_manifests(duplicate, source_uids)
+
+            gap = copy.deepcopy(manifests)
+            gap[1]["uids"][0] = "synthetic-missing-uid"
+            gap[1]["uid_first"] = gap[1]["uids"][0]
+            gap[1]["uids_sha256"] = chaosnli_adapter._uids_sha256(gap[1]["uids"])
+            with self.assertRaisesRegex(
+                chaosnli_adapter.ManifestError, "gap, overlap, or order change"
+            ):
+                chaosnli_adapter.aggregate_shard_manifests(gap, source_uids)
+
+    def test_offset_limit_matches_shard_math_and_manifests_are_deterministic(self):
+        with tempfile.TemporaryDirectory(prefix="groundless-chaosnli-ranges-") as temp:
+            temp_path = Path(temp)
+            for index, (offset, limit) in enumerate(((0, 2), (2, 2), (4, 3))):
+                shard = temp_path / "shard-{}.json".format(index)
+                ranged = temp_path / "range-{}.json".format(index)
+                subprocess.run(
+                    [
+                        sys.executable,
+                        str(self.ADAPTER),
+                        str(self.FIXTURE),
+                        "--shard-index",
+                        str(index),
+                        "--shard-count",
+                        "3",
+                        "--out",
+                        str(shard),
+                    ],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+                subprocess.run(
+                    [
+                        sys.executable,
+                        str(self.ADAPTER),
+                        str(self.FIXTURE),
+                        "--offset",
+                        str(offset),
+                        "--limit",
+                        str(limit),
+                        "--out",
+                        str(ranged),
+                    ],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+                self.assertEqual(shard.read_bytes(), ranged.read_bytes())
+
+            first = temp_path / "first.json"
+            second = temp_path / "second.json"
+            for output in (first, second):
+                subprocess.run(
+                    [
+                        sys.executable,
+                        str(self.ADAPTER),
+                        str(self.FIXTURE),
+                        "--shard-index",
+                        "2",
+                        "--shard-count",
+                        "3",
+                        "--out",
+                        str(output),
+                    ],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+            self.assertEqual(
+                Path(str(first) + ".manifest.json").read_bytes(),
+                Path(str(second) + ".manifest.json").read_bytes(),
+            )
+
+    def test_distribution_verifier_rejects_a_broken_converted_record(self):
+        records = chaosnli_adapter.load_records(str(self.FIXTURE))
+        dataset = chaosnli_adapter.convert(records)
+        first_votes = dataset["items"][0]["labels"]["nli_label"]
+        first_annotator = next(iter(first_votes))
+        first_votes[first_annotator] = "n"
+        with self.assertRaisesRegex(ValueError, "distribution mismatch"):
+            chaosnli_adapter.verify_converted_distributions(records, dataset)
 
     def test_bad_counter_and_duplicate_uid_are_rejected(self):
         source = _load_jsonl(self.FIXTURE)

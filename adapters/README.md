@@ -50,10 +50,30 @@ recomputed from `label_counter`.
 
 The input contract represents individual votes, so each published count is
 expanded into that many virtual voters. Full ChaosNLI splits therefore produce
-large `labels.json` files, and this repository's explanatory tools are not
-optimized as a high-throughput corpus engine. Trial the workflow on a JSONL
-shard before committing resources to a full split; sharding does not change any
-per-item distribution.
+large `labels.json` files. Use deterministic, contiguous shards to bound each
+pipeline run without dropping or reordering records:
+
+```bash
+for shard in 0 1 2 3; do
+  python3 adapters/chaosnli.py path/to/chaosNLI_snli.jsonl \
+    --shard-index "$shard" --shard-count 4 \
+    --out "/tmp/chaos-shard-$shard.json"
+done
+```
+
+For `M` source records, shard `K` contains
+`[floor(K*M/N):floor((K+1)*M/N)]`. Each selected conversion writes an ordered,
+deterministic `<out>.manifest.json` containing source/output hashes, record and
+vote counts, UID coverage, and the tool commit. The alternative
+`--offset O [--limit L]` mode selects the same contiguous ranges directly; it
+cannot be combined with shard mode. Omitting all selection flags preserves the
+whole-file behavior.
+
+The external-data harness in [`reports/chaosnli/`](../reports/chaosnli/)
+constructs every shard, proves that their manifests cover every source UID once
+and in order, validates the schema, checks every converted counter and soft
+label, and runs the operational pipeline. Only its report and hash/count
+manifest are committed—not the licensed rows or converted outputs.
 
 To exercise the conversion without downloading anything:
 
@@ -61,4 +81,5 @@ To exercise the conversion without downloading anything:
 python3 adapters/chaosnli.py adapters/fixtures/chaosnli_sample.jsonl --out /tmp/chaos-labels.json
 ```
 
-The synthetic fixture includes one `e/n/c` example and one αNLI `1/2` example.
+The seven-row synthetic fixture includes both `e/n/c` and αNLI `1/2` examples
+and exercises uneven full-coverage sharding in CI.
