@@ -5,3 +5,7 @@ governance.jsonl
 resolution_records.jsonl
 __pycache__/
 *.pyc
+reports/chaosnli/work/
+reports/chaosnli/source/
+reports/chaosnli/*.zip
+reports/chaosnli/chaosNLI_*.jsonl

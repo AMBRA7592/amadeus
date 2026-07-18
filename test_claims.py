@@ -29,6 +29,7 @@ import frustration
 import geometry
 import resolution
 import topology
+from adapters import chaosnli as chaosnli_adapter
 
 try:
     from jsonschema import Draft202012Validator, FormatChecker
@@ -940,14 +941,21 @@ class ChaosNLIAdapterClaims(unittest.TestCase):
                 self.assertIn(caveat, about)
 
             self.assertEqual(len(dataset["items"]), len(source))
-            self.assertEqual(len(dataset["annotators"]), 20)
+            self.assertEqual(len(dataset["annotators"]), 70)
             self.assertEqual(dataset["cohorts"], {"crowd": dataset["annotators"]})
             annotators_by_item = []
             for item in dataset["items"]:
                 votes = item["labels"]["nli_label"]
                 annotators_by_item.append(set(votes))
                 self.assertEqual(Counter(votes.values()), Counter(source_counts[item["id"]]))
-            self.assertTrue(annotators_by_item[0].isdisjoint(annotators_by_item[1]))
+            for index, annotators in enumerate(annotators_by_item):
+                self.assertTrue(
+                    annotators.isdisjoint(
+                        set().union(*annotators_by_item[:index])
+                        if index
+                        else set()
+                    )
+                )
 
             out_dir = temp_path / "run"
             for tool in ("disagreement.py", "soft_labels.py", "resolution.py"):
@@ -991,6 +999,145 @@ class ChaosNLIAdapterClaims(unittest.TestCase):
             self.assertTrue(
                 all(record["measures"]["geometry_gap"] is None for record in records)
             )
+
+    def test_shards_cover_fixture_exactly_and_reject_corruption(self):
+        source = _load_jsonl(self.FIXTURE)
+        source_uids = [record["uid"] for record in source]
+        with tempfile.TemporaryDirectory(prefix="groundless-chaosnli-shards-") as temp:
+            temp_path = Path(temp)
+            manifests = []
+            shard_uids = []
+            for index in range(3):
+                output = temp_path / "shard-{}.json".format(index)
+                subprocess.run(
+                    [
+                        sys.executable,
+                        str(self.ADAPTER),
+                        str(self.FIXTURE),
+                        "--shard-index",
+                        str(index),
+                        "--shard-count",
+                        "3",
+                        "--out",
+                        str(output),
+                    ],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+                manifest = _load_json(Path(str(output) + ".manifest.json"))
+                manifests.append(manifest)
+                shard_uids.append(manifest["uids"])
+
+            self.assertEqual([len(uids) for uids in shard_uids], [2, 2, 3])
+            self.assertEqual(
+                [uid for uids in shard_uids for uid in uids], source_uids
+            )
+            self.assertEqual(
+                len({uid for uids in shard_uids for uid in uids}), len(source_uids)
+            )
+            aggregate = chaosnli_adapter.aggregate_shard_manifests(
+                manifests, source_uids
+            )
+            self.assertEqual(aggregate["record_count"], 7)
+            self.assertEqual(aggregate["uids"], source_uids)
+
+            duplicate = copy.deepcopy(manifests)
+            duplicate[1]["uids"][0] = duplicate[0]["uids"][-1]
+            duplicate[1]["uid_first"] = duplicate[1]["uids"][0]
+            duplicate[1]["uids_sha256"] = chaosnli_adapter._uids_sha256(
+                duplicate[1]["uids"]
+            )
+            with self.assertRaisesRegex(
+                chaosnli_adapter.ManifestError, "duplicate uid"
+            ):
+                chaosnli_adapter.aggregate_shard_manifests(duplicate, source_uids)
+
+            gap = copy.deepcopy(manifests)
+            gap[1]["uids"][0] = "synthetic-missing-uid"
+            gap[1]["uid_first"] = gap[1]["uids"][0]
+            gap[1]["uids_sha256"] = chaosnli_adapter._uids_sha256(gap[1]["uids"])
+            with self.assertRaisesRegex(
+                chaosnli_adapter.ManifestError, "gap, overlap, or order change"
+            ):
+                chaosnli_adapter.aggregate_shard_manifests(gap, source_uids)
+
+    def test_offset_limit_matches_shard_math_and_manifests_are_deterministic(self):
+        with tempfile.TemporaryDirectory(prefix="groundless-chaosnli-ranges-") as temp:
+            temp_path = Path(temp)
+            for index, (offset, limit) in enumerate(((0, 2), (2, 2), (4, 3))):
+                shard = temp_path / "shard-{}.json".format(index)
+                ranged = temp_path / "range-{}.json".format(index)
+                subprocess.run(
+                    [
+                        sys.executable,
+                        str(self.ADAPTER),
+                        str(self.FIXTURE),
+                        "--shard-index",
+                        str(index),
+                        "--shard-count",
+                        "3",
+                        "--out",
+                        str(shard),
+                    ],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+                subprocess.run(
+                    [
+                        sys.executable,
+                        str(self.ADAPTER),
+                        str(self.FIXTURE),
+                        "--offset",
+                        str(offset),
+                        "--limit",
+                        str(limit),
+                        "--out",
+                        str(ranged),
+                    ],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+                self.assertEqual(shard.read_bytes(), ranged.read_bytes())
+
+            first = temp_path / "first.json"
+            second = temp_path / "second.json"
+            for output in (first, second):
+                subprocess.run(
+                    [
+                        sys.executable,
+                        str(self.ADAPTER),
+                        str(self.FIXTURE),
+                        "--shard-index",
+                        "2",
+                        "--shard-count",
+                        "3",
+                        "--out",
+                        str(output),
+                    ],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+            self.assertEqual(
+                Path(str(first) + ".manifest.json").read_bytes(),
+                Path(str(second) + ".manifest.json").read_bytes(),
+            )
+
+    def test_distribution_verifier_rejects_a_broken_converted_record(self):
+        records = chaosnli_adapter.load_records(str(self.FIXTURE))
+        dataset = chaosnli_adapter.convert(records)
+        first_votes = dataset["items"][0]["labels"]["nli_label"]
+        first_annotator = next(iter(first_votes))
+        first_votes[first_annotator] = "n"
+        with self.assertRaisesRegex(ValueError, "distribution mismatch"):
+            chaosnli_adapter.verify_converted_distributions(records, dataset)
 
     def test_bad_counter_and_duplicate_uid_are_rejected(self):
         source = _load_jsonl(self.FIXTURE)
