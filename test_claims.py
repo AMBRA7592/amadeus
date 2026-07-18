@@ -32,6 +32,9 @@ import geometry
 import resolution
 import topology
 from adapters import chaosnli as chaosnli_adapter
+from adapters import mhs as mhs_adapter
+from reports.mhs import metrics as mhs_metrics
+from reports.mhs import run_study as mhs_study
 
 try:
     from jsonschema import Draft202012Validator, FormatChecker
@@ -1326,6 +1329,256 @@ class ChaosNLIAdapterClaims(unittest.TestCase):
             schema = _load_json(ROOT / "schema" / "labels.schema.json")
             Draft202012Validator.check_schema(schema)
             Draft202012Validator(schema).validate(_load_json(labels_path))
+
+
+class MHSPhaseOneClaims(unittest.TestCase):
+    FIXTURE = ROOT / "reports" / "mhs" / "fixtures" / "mhs_sample.jsonl"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.records = mhs_adapter.load_jsonl(str(cls.FIXTURE))
+        cls.converted = mhs_adapter.convert_records(cls.records)
+
+    def test_frozen_eligibility_cohorts_primary_filter_and_halt(self):
+        converted = self.converted
+        self.assertEqual(converted["status"], "ready")
+        self.assertIsNone(converted["halt_reason"])
+        self.assertEqual(
+            converted["counts"],
+            {
+                "source_records": 245,
+                "non_null_judgments": 244,
+                "eligible_annotators": 5,
+                "conservative_annotators": 2,
+                "liberal_annotators": 2,
+                "excluded_eligible_annotators": 1,
+                "primary_items": 50,
+                "reliability_items": 51,
+            },
+        )
+        self.assertEqual(
+            converted["primary"]["cohorts"],
+            {
+                "Conservative": ["c-extreme", "c-slight"],
+                "Liberal": ["l-extreme", "l-slight"],
+            },
+        )
+        for ideology in mhs_adapter.CONSERVATIVE_IDEOLOGIES:
+            self.assertEqual(
+                mhs_adapter.cohort_for_ideology(ideology), "Conservative"
+            )
+        for ideology in mhs_adapter.LIBERAL_IDEOLOGIES:
+            self.assertEqual(mhs_adapter.cohort_for_ideology(ideology), "Liberal")
+        for ideology in ("neutral", "no_opinion", None, "Conservative"):
+            self.assertIsNone(mhs_adapter.cohort_for_ideology(ideology))
+
+        primary_ids = [item["id"] for item in converted["primary"]["items"]]
+        reliability_ids = [
+            item["id"] for item in converted["reliability"]["items"]
+        ]
+        self.assertNotIn("synthetic-filter-fail", primary_ids)
+        self.assertIn("synthetic-filter-fail", reliability_ids)
+        self.assertEqual(
+            converted["primary"]["questions"]["hatespeech"]["labels"],
+            ["0", "1", "2"],
+        )
+        observed_labels = {
+            label
+            for item in converted["primary"]["items"]
+            for label in item["labels"]["hatespeech"].values()
+        }
+        self.assertEqual(observed_labels, {"0", "1", "2"})
+        self.assertFalse(
+            {
+                "c-below-floor",
+                "null-judgment",
+                "excluded-neutral",
+                "excluded-no-opinion",
+                "excluded-null",
+            }
+            & set(converted["reliability"]["annotators"])
+        )
+
+        below_fifty = [
+            record
+            for record in self.records
+            if record["comment_id"]
+            not in ("synthetic-050", "synthetic-filter-fail")
+        ]
+        halted = mhs_adapter.convert_records(below_fifty)
+        self.assertEqual(halted["status"], "halt")
+        self.assertEqual(halted["counts"]["primary_items"], 49)
+        self.assertIn("below the frozen minimum 50", halted["halt_reason"])
+
+    def test_synthetic_tool_wiring_and_frozen_metric_results(self):
+        with tempfile.TemporaryDirectory(prefix="groundless-mhs-") as temp:
+            temp_path = Path(temp)
+            primary_path = temp_path / "primary-labels.json"
+            reliability_path = temp_path / "reliability-labels.json"
+            mhs_adapter.write_dataset(self.converted["primary"], primary_path)
+            mhs_adapter.write_dataset(
+                self.converted["reliability"], reliability_path
+            )
+            primary_out = temp_path / "primary"
+            reliability_out = temp_path / "reliability"
+            for data_path, out_dir in (
+                (primary_path, primary_out),
+                (reliability_path, reliability_out),
+            ):
+                for tool in ("disagreement.py", "soft_labels.py"):
+                    subprocess.run(
+                        [
+                            sys.executable,
+                            str(ROOT / tool),
+                            "--data",
+                            str(data_path),
+                            "--out",
+                            str(out_dir),
+                        ],
+                        check=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        universal_newlines=True,
+                    )
+
+            triage = _load_json(primary_out / "triage.json")
+            by_item = {cell["item"]: cell for cell in triage["cells"]}
+            self.assertTrue(by_item["synthetic-001"]["value_fork"])
+            self.assertEqual(
+                by_item["synthetic-001"]["cohort_majorities"],
+                {"Conservative": "0", "Liberal": "2"},
+            )
+            self.assertFalse(by_item["synthetic-002"]["value_fork"])
+            self.assertFalse(by_item["synthetic-003"]["value_fork"])
+            self.assertEqual(
+                by_item["synthetic-003"]["cohort_majorities"],
+                {"Conservative": None, "Liberal": "2"},
+            )
+
+            primary_metrics = mhs_study.aggregate_primary(
+                self.converted["primary"], triage
+            )
+            self.assertEqual(primary_metrics["value_fork"]["count"], 1)
+            self.assertEqual(primary_metrics["value_fork"]["total"], 50)
+            self.assertEqual(
+                primary_metrics["manufactured_consensus"]["count"], 1
+            )
+            self.assertEqual(
+                primary_metrics["geometry_gap"]["undefined_count"], 2
+            )
+            self.assertEqual(
+                primary_metrics["geometry_gap"]["defined_count"], 48
+            )
+            self.assertEqual(
+                primary_metrics["geometry_gap"]["defined"]["median"], 0.0
+            )
+
+            reliability = mhs_study.aggregate_reliability(
+                self.converted["reliability"],
+                _load_json(reliability_out / "triage.json"),
+            )
+            self.assertEqual(reliability["status"], "underpowered/non-applicable")
+            self.assertEqual(
+                reliability["coverage"],
+                {
+                    "Conservative": {"eligible": 2, "qualifying": 2},
+                    "Liberal": {"eligible": 2, "qualifying": 2},
+                },
+            )
+            self.assertIsNone(reliability["bootstrap_95"])
+
+    def test_frozen_descriptive_statistics(self):
+        interval = mhs_metrics.wilson_interval(5, 10)
+        self.assertAlmostEqual(interval["lower"], 0.236593090512564, places=12)
+        self.assertAlmostEqual(interval["upper"], 0.763406909487436, places=12)
+        self.assertEqual(
+            mhs_metrics.median_iqr([1, 2, 3, 4]),
+            {"median": 2.5, "q1": 1.75, "q3": 3.25, "iqr": 1.5},
+        )
+        self.assertEqual(mhs_metrics.BOOTSTRAP_ITERATIONS, 10000)
+        self.assertEqual(mhs_metrics.BOOTSTRAP_SEED, 20260718)
+        first = mhs_metrics.bootstrap_median([0, 1, 2, 3])
+        second = mhs_metrics.bootstrap_median([0, 1, 2, 3])
+        self.assertEqual(first, second)
+        self.assertEqual(first["iterations"], 10000)
+        self.assertEqual(first["seed"], 20260718)
+        self.assertNotIn("p_value", first)
+        self.assertNotIn("pvalue", first)
+
+    def test_adapter_rejects_ambiguous_rows_and_harness_halts_on_hash(self):
+        invalid_label = copy.deepcopy(self.records)
+        invalid_label[0]["hatespeech"] = 3
+        with self.assertRaisesRegex(mhs_adapter.MHSInputError, "one of 0, 1, 2"):
+            mhs_adapter.convert_records(invalid_label)
+
+        inconsistent_ideology = copy.deepcopy(self.records)
+        inconsistent_ideology[4]["annotator_ideology"] = "liberal"
+        with self.assertRaisesRegex(
+            mhs_adapter.MHSInputError, "inconsistent author-supplied ideology"
+        ):
+            mhs_adapter.convert_records(inconsistent_ideology)
+
+        duplicate = copy.deepcopy(self.records)
+        duplicate.append(copy.deepcopy(duplicate[0]))
+        with self.assertRaisesRegex(mhs_adapter.MHSInputError, "duplicate judgment"):
+            mhs_adapter.convert_records(duplicate)
+
+        with tempfile.TemporaryDirectory(prefix="groundless-mhs-hash-") as temp:
+            fake_source = Path(temp) / "not-mhs.parquet"
+            fake_source.write_bytes(b"synthetic, not parquet")
+            with self.assertRaisesRegex(SystemExit, "MHS source SHA-256 mismatch"):
+                mhs_study.verify_source(fake_source)
+            self.assertEqual(list(Path(temp).iterdir()), [fake_source])
+
+    def test_phase_boundary_and_frozen_constants_are_explicit(self):
+        adapter_source = (ROOT / "adapters" / "mhs.py").read_text(encoding="utf-8")
+        harness_source = (
+            ROOT / "reports" / "mhs" / "run_study.py"
+        ).read_text(encoding="utf-8")
+        readme = (ROOT / "reports" / "mhs" / "README.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertLess(
+            harness_source.index("def load_parquet_records"),
+            harness_source.index("import pyarrow.parquet as parquet"),
+        )
+        self.assertNotIn("pyarrow", adapter_source)
+        for token in (
+            "20",
+            "extremely_conservative",
+            "conservative",
+            "slightly_conservative",
+            "extremely_liberal",
+            "liberal",
+            "slightly_liberal",
+            "50",
+        ):
+            self.assertIn(token, adapter_source)
+        for token in ("10,000", "20260718", "30", "no null-hypothesis p-values"):
+            self.assertIn(token, readme)
+        tracked_parquet = subprocess.run(
+            ["git", "ls-files", "*.parquet"],
+            cwd=str(ROOT),
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+        ).stdout.strip()
+        self.assertEqual(tracked_parquet, "")
+        self.assertTrue(
+            all(
+                record["comment_id"].startswith("synthetic-")
+                for record in self.records
+            )
+        )
+
+    @unittest.skipUnless(_HAS_JSONSCHEMA, "jsonschema is not installed")
+    def test_both_mhs_outputs_match_the_input_schema(self):
+        schema = _load_json(ROOT / "schema" / "labels.schema.json")
+        Draft202012Validator.check_schema(schema)
+        validator = Draft202012Validator(schema)
+        validator.validate(self.converted["primary"])
+        validator.validate(self.converted["reliability"])
 
 
 class GovernanceClaims(unittest.TestCase):
