@@ -1,0 +1,143 @@
+{
+  "coverage": {
+    "ordered_complete_unique": true,
+    "record_count": 1514,
+    "uids_sha256": "3adeec4e4753665a6655e3e8e1175caa2c56f838f2b02e106331309fb60407c6"
+  },
+  "dataset": "chaosNLI_snli.jsonl",
+  "evidence_tier": "Tier 2 - manifest-reproducible external empirical run",
+  "label_set": [
+    "c",
+    "e",
+    "n"
+  ],
+  "shard_count": 16,
+  "shards": [
+    {
+      "output_sha256": "4e6518f1566f2bd335f3c42fdf8bc101da174eb2efc3086b0b3d6a44ded3f158",
+      "record_count": 94,
+      "shard_index": 0,
+      "uids_sha256": "3cfba32a86652349bbecd14c242ea7004d01b7344e3be7f62b161a45da0cbcc9",
+      "vote_count": 9400
+    },
+    {
+      "output_sha256": "028198a06ddc2d79415902b1ccc6d706ad74d15efb2a170aa5779668fc0aa433",
+      "record_count": 95,
+      "shard_index": 1,
+      "uids_sha256": "721f8072ea16efb53d7afadb3938315f2eb6599654fad1cb98b69fad0756a3d2",
+      "vote_count": 9500
+    },
+    {
+      "output_sha256": "cd440dbfd38a01a8c3cbdb13730b0ba3f234afc0395041e87dfde7ae84352793",
+      "record_count": 94,
+      "shard_index": 2,
+      "uids_sha256": "48b0b73d902b23b2e9d42f2bd032fd7f0903192faca53d654cd70c273672ee36",
+      "vote_count": 9400
+    },
+    {
+      "output_sha256": "f97bf99333e3dfa3f672ac906e1cf38b60be6e5913a52357077d3bfa07d872f8",
+      "record_count": 95,
+      "shard_index": 3,
+      "uids_sha256": "ac36c339b3e4418dd5c7067b519183ddda6ff3a63b567afedc90cfbd02b7267d",
+      "vote_count": 9500
+    },
+    {
+      "output_sha256": "2e8d7b99f7e6f444107b4098eefc2090ae4b7817e872b063e9b1e4436f5cfc9d",
+      "record_count": 95,
+      "shard_index": 4,
+      "uids_sha256": "756a009fbdbf043ac1c043ceecdd9c4ff2ae88306a0615c9e96b3c9405cf795d",
+      "vote_count": 9500
+    },
+    {
+      "output_sha256": "41aeec4e248c3fdb51ec17159b8477a56db0239fe0e7531bf20204fb510e4305",
+      "record_count": 94,
+      "shard_index": 5,
+      "uids_sha256": "18b2b1d869a8e0ce414214317baf47b23ecf62c944f8c7d451363a6e90273d6a",
+      "vote_count": 9400
+    },
+    {
+      "output_sha256": "7989bf873a0a8b72442007edf2ecf0e14c8ddf5e1b82f14a8998f9ea72707690",
+      "record_count": 95,
+      "shard_index": 6,
+      "uids_sha256": "dd10e82d5a71f014c4149a52568f5b5a9388582b561d0bf2ce8ae09767c3c58b",
+      "vote_count": 9500
+    },
+    {
+      "output_sha256": "94126c8d58afb1939e1f360809c4053c5344e7055cbf9d8162b253494d664c89",
+      "record_count": 95,
+      "shard_index": 7,
+      "uids_sha256": "6c2f54785eff99df7b7b051101060fe29c8ce0d71ed72b3ce2ccf7c1627ab16a",
+      "vote_count": 9500
+    },
+    {
+      "output_sha256": "874cd6ac8aa3d18578ef25938726b6a8b142ff60a43c10ae697bb67a1e64a144",
+      "record_count": 94,
+      "shard_index": 8,
+      "uids_sha256": "fd2c15edfdcdf63355bd243cde3398691204d9c5b2010ea48a506dd228a10f19",
+      "vote_count": 9400
+    },
+    {
+      "output_sha256": "f2109912e3ec2c982cacd41e15f0307191f60b3b5dd56290263b01cce448b233",
+      "record_count": 95,
+      "shard_index": 9,
+      "uids_sha256": "413196a94029e9b64b311fc514a1396c3c837d125102c95d95ca1b50ce906437",
+      "vote_count": 9500
+    },
+    {
+      "output_sha256": "6e83b5b0a3d9c824042f4035d3fa1efa5cebf62a8705bb305d1efd809e990cfa",
+      "record_count": 94,
+      "shard_index": 10,
+      "uids_sha256": "6c545958cf154e9e7131bdb982a89de447b67385f8b4403b50389bc1d57e1edb",
+      "vote_count": 9400
+    },
+    {
+      "output_sha256": "ae3cc87986ad55a4979701af6d4d8715a2ddc80735adeea089fcddd1a26f5917",
+      "record_count": 95,
+      "shard_index": 11,
+      "uids_sha256": "274aab5c10cb9a4cf4df1d4cc9ab1de5aeef7adc22cca68307f6ed9c0089ea45",
+      "vote_count": 9500
+    },
+    {
+      "output_sha256": "921fcf99bf3cea51c852195b0cf250a53c385a290cefab1fdd6ec218b85420c5",
+      "record_count": 95,
+      "shard_index": 12,
+      "uids_sha256": "cc213c2cd086d5140a91d3cc9c564239940580be0ac2512fd949625494987d6e",
+      "vote_count": 9500
+    },
+    {
+      "output_sha256": "1fd28c3ac4f1b446fd173e2dc001588318515d400f155a6cbe3a6b2c2a22368e",
+      "record_count": 94,
+      "shard_index": 13,
+      "uids_sha256": "4139cc5e78d4cd4534e5fb0fe94901a4f5a564c47cbf39405a208296c7340fc7",
+      "vote_count": 9400
+    },
+    {
+      "output_sha256": "ac0604423ea7bd757f4fc677104945e49d736b99ce7f60d08994dabbf61f030d",
+      "record_count": 95,
+      "shard_index": 14,
+      "uids_sha256": "586bc4badbaf8889f93eb64bca2da392bc109218f6840b2385ae2f8a871d108a",
+      "vote_count": 9500
+    },
+    {
+      "output_sha256": "c7adc7ced562e04aa823fe6ef3fc3e92cbc49ee41f8c50cb89efed5fe3d32da9",
+      "record_count": 95,
+      "shard_index": 15,
+      "uids_sha256": "6cdce5a80fc6e3deb144aa209f5276f9155e77fd338dd328bd15efbeb0b1b1ac",
+      "vote_count": 9500
+    }
+  ],
+  "source_license": "CC BY-NC 4.0",
+  "source_sha256": "99f9015ddda7d85f66a087452bc30d53974314fe27e7d589e2f41ad44bd509c1",
+  "source_url": "https://www.dropbox.com/s/h4j7dqszmpt2679/chaosNLI_v1.0.zip",
+  "source_version": "ChaosNLI v1.0",
+  "tool_commit": "b6b9914552d7200c6dc8ffdec193a6cc390e3e9b",
+  "total_records": 1514,
+  "verification": {
+    "distribution_matches": 1514,
+    "entropy_matches": 1514,
+    "pipeline_complete_shards": 16,
+    "schema_valid_shards": 16,
+    "soft_label_matches": 1514
+  },
+  "vote_count": 151400
+}

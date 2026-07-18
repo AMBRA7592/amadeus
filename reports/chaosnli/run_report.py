@@ -289,8 +289,10 @@ def main(argv=None):
     )
     report = """# ChaosNLI real-split reproducibility report
 
-**Evidence tier:** Tier 2 — manifest-reproducible external empirical evidence.  
-**Generated:** {generated_at}  
+**Evidence tier:** Tier 2 — manifest-reproducible external empirical evidence.
+
+**Generated:** {generated_at}
+
 **Tool commit:** `{tool_commit}`
 
 This report records one run on a separately downloaded official split. No

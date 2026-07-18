@@ -16,16 +16,19 @@ output/UID-list hashes.
    [official ChaosNLI repository](https://github.com/easonnie/ChaosNLI) and
    extract it outside this repository.
 2. Confirm the split's SHA-256 equals the value in `manifest.json`.
-3. From the repository root, with `jsonschema` installed, run:
+3. Run from the exact tool commit recorded in the manifest
+   (`b6b9914552d7200c6dc8ffdec193a6cc390e3e9b`), preferably in a detached
+   worktree so your current checkout is untouched.
+4. From that worktree's root, with `jsonschema` installed, run:
 
    ```bash
    python3 reports/chaosnli/run_report.py \
      /path/to/chaosNLI_snli.jsonl \
-     --expected-source-sha256 SHA256_FROM_MANIFEST \
+     --expected-source-sha256 99f9015ddda7d85f66a087452bc30d53974314fe27e7d589e2f41ad44bd509c1 \
      --shard-count 16
    ```
 
-4. Compare the regenerated deterministic `manifest.json` with the committed
+5. Compare the regenerated deterministic `manifest.json` with the committed
    one. Runtime and memory belong only to the human-readable report because
    they vary by machine.
 
