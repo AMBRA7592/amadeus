@@ -1049,10 +1049,19 @@ class GovernanceClaims(unittest.TestCase):
             )
 
     def test_default_governance_bytes_are_pinned(self):
-        digest = hashlib.sha256(_pipeline()["governance_bytes"]).hexdigest()
+        pipeline = _pipeline()
+        digest = hashlib.sha256(pipeline["governance_bytes"]).hexdigest()
         self.assertEqual(
             digest,
             "91c1876d468d02694ec302158668e37d7482914be70b5ab6e8611c54cd3a8e2f",
+        )
+        self.assertEqual(len(pipeline["governance"]), 2)
+        self.assertTrue(
+            all(
+                record.get("status") == "pending"
+                and "decision_off_menu" not in record
+                for record in pipeline["governance"]
+            )
         )
 
     def test_decide_reaches_resolution_and_survives_exporter_rerun(self):
@@ -1110,6 +1119,7 @@ class GovernanceClaims(unittest.TestCase):
             )
             self.assertEqual(decision["status"], "decided")
             self.assertTrue(decision["decided_at"].endswith("Z"))
+            self.assertNotIn("decision_off_menu", decision)
 
             subprocess.run(
                 [sys.executable, str(ROOT / "resolution.py"), "--out", str(out_dir)],
@@ -1160,6 +1170,94 @@ class GovernanceClaims(unittest.TestCase):
             self.assertNotEqual(overwrite.returncode, 0)
             self.assertIn("refusing to overwrite", overwrite.stderr)
             self.assertEqual(governance_path.read_bytes(), before_overwrite)
+            self.assertEqual(list(out_dir.glob(".governance.*.tmp")), [])
+
+    def test_off_menu_decision_requires_explicit_escape_and_persists(self):
+        with tempfile.TemporaryDirectory(prefix="groundless-govern-off-menu-") as temp:
+            out_dir = Path(temp)
+            self._prepare_queue(out_dir)
+            governance_path = out_dir / "governance.jsonl"
+            original = governance_path.read_bytes()
+            command = [
+                sys.executable,
+                str(ROOT / "govern.py"),
+                "decide",
+                "--item",
+                "img2",
+                "--question",
+                "explicit",
+                "--owner",
+                "Safety policy owner",
+                "--decision",
+                "saef",
+                "--rationale",
+                "Apply a documented exception outside the observed labels.",
+                "--out",
+                str(out_dir),
+            ]
+
+            rejected = subprocess.run(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("explicit / flag", rejected.stderr)
+            self.assertIn("safe", rejected.stderr)
+            self.assertIn("--allow-other", rejected.stderr)
+            self.assertEqual(governance_path.read_bytes(), original)
+
+            subprocess.run(
+                command + ["--allow-other"],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            decision = next(
+                record
+                for record in _load_jsonl(governance_path)
+                if record["item_id"] == "img2" and record["question"] == "explicit"
+            )
+            self.assertEqual(decision["decision_recorded"], "saef")
+            self.assertIs(decision["decision_off_menu"], True)
+
+            subprocess.run(
+                [sys.executable, str(ROOT / "resolution.py"), "--out", str(out_dir)],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            resolution_record = next(
+                record
+                for record in _load_jsonl(out_dir / "resolution_records.jsonl")
+                if record["item"] == "img2" and record["question"] == "explicit"
+            )
+            self.assertEqual(resolution_record["disposition"]["outcome"], "decided:saef")
+            self.assertEqual(
+                resolution_record["authority"]["owner"], "Safety policy owner"
+            )
+            self.assertEqual(
+                resolution_record["authority"]["decided_by"], "named_owner"
+            )
+
+            subprocess.run(
+                [sys.executable, str(ROOT / "soft_labels.py"), "--out", str(out_dir)],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            persisted = next(
+                record
+                for record in _load_jsonl(governance_path)
+                if record["item_id"] == "img2" and record["question"] == "explicit"
+            )
+            self.assertIs(persisted["decision_off_menu"], True)
+            self.assertEqual(persisted["decision_recorded"], "saef")
+            self.assertEqual(persisted["decided_at"], decision["decided_at"])
             self.assertEqual(list(out_dir.glob(".governance.*.tmp")), [])
 
     def test_invalid_decisions_and_corrupt_decided_state_are_rejected(self):

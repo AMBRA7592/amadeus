@@ -36,6 +36,11 @@ def _parse_args(argv):
     decide_parser.add_argument("--decision", required=True, help="recorded decision")
     decide_parser.add_argument("--rationale", required=True, help="decision rationale")
     decide_parser.add_argument(
+        "--allow-other",
+        action="store_true",
+        help="permit a decision outside the cell's observed labels (recorded verbatim)",
+    )
+    decide_parser.add_argument(
         "--out",
         default=None,
         help="directory containing governance.jsonl (default: current directory)",
@@ -204,9 +209,23 @@ def decide(args):
             )
         )
 
+    options = set(target.get("soft_label", {}))
+    off_menu = decision not in options
+    if off_menu and not args.allow_other:
+        _fail(
+            "decision {!r} is not one of the recorded options ({}); "
+            "pass --allow-other to record a deliberate off-menu decision".format(
+                decision, ", ".join(sorted(options)) or "none"
+            )
+        )
+
     target["decision_required_from"] = owner
     target["decision_recorded"] = decision
     target["decision_rationale"] = rationale
+    if off_menu:
+        target["decision_off_menu"] = True
+    else:
+        target.pop("decision_off_menu", None)
     target.pop("status", None)
     target["decided_at"] = utc_timestamp()
     target["status"] = "decided"

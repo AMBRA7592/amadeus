@@ -187,6 +187,7 @@ def main(argv=None):
             g["decision_recorded"] = p.get("decision_recorded")
             g["decision_rationale"] = p.get("decision_rationale")
             if "decided_at" in p: g["decided_at"] = p["decided_at"]
+            if "decision_off_menu" in p: g["decision_off_menu"] = p["decision_off_menu"]
         g["status"] = "decided" if g["decision_recorded"] is not None else "pending"
         merged.append(g)
     for key, p in prior.items():                         # don't drop a decided record just
