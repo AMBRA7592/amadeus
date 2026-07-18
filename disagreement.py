@@ -25,6 +25,7 @@ contested or review items would turn reliability into conformity.
 No third-party dependencies.  Run:  python3 disagreement.py
 """
 
+import argparse
 import json
 import math
 import os
@@ -32,11 +33,208 @@ from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data", "labels.json")
+PIPELINE_EPILOG = (
+    "Run disagreement.py, soft_labels.py, and resolution.py in that order "
+    "with the same --data and --out values. Later stages read artifacts from --out."
+)
 
 # --- thresholds (transparent on purpose; tune to your risk appetite) -------
 NEAR_CONSENSUS = 0.875   # >= this share agree -> the collapse to one label is honest
 STRUCTURED_MIN = 0.25    # a coherent minority this large is a stakeholder, not noise
 UNRELIABLE = 0.70        # below this (on CONFIDENT cells only) -> audit the annotator
+
+
+def _parse_args(argv):
+    parser = argparse.ArgumentParser(
+        description=__doc__.strip().splitlines()[0],
+        epilog=PIPELINE_EPILOG,
+    )
+    parser.add_argument(
+        "--data",
+        default=DATA,
+        help="input labels.json (default: the bundled demo dataset)",
+    )
+    parser.add_argument(
+        "--out",
+        default=None,
+        help="directory for generated artifacts (default: current directory)",
+    )
+    return parser.parse_args(argv)
+
+
+def _invalid_labels(message):
+    raise SystemExit("labels.json: " + message)
+
+
+def validate_dataset(ds):
+    """Apply the cross-field checks JSON Schema cannot express cheaply."""
+    if not isinstance(ds, dict):
+        _invalid_labels("root must be an object")
+    required = ("questions", "annotators", "cohorts", "items")
+    missing = [key for key in required if key not in ds]
+    if missing:
+        _invalid_labels("missing required field(s): " + ", ".join(missing))
+
+    questions = ds["questions"]
+    if not isinstance(questions, dict) or not questions:
+        _invalid_labels("questions must be a non-empty object")
+    for question, spec in questions.items():
+        if not isinstance(question, str) or not question:
+            _invalid_labels("question names must be non-empty strings")
+        if not isinstance(spec, dict):
+            _invalid_labels("question {!r} must be an object".format(question))
+        if spec.get("type") not in ("binary", "categorical"):
+            _invalid_labels(
+                "question {!r} type must be binary or categorical".format(question)
+            )
+        labels = spec.get("labels")
+        if spec["type"] == "binary":
+            if (
+                not isinstance(labels, dict)
+                or not labels
+                or any(
+                    not isinstance(key, str) or not isinstance(value, str)
+                    for key, value in labels.items()
+                )
+            ):
+                _invalid_labels(
+                    "binary question {!r} labels must map strings to strings".format(question)
+                )
+        elif (
+            not isinstance(labels, list)
+            or not labels
+            or any(not isinstance(label, str) for label in labels)
+            or len(set(labels)) != len(labels)
+        ):
+            _invalid_labels(
+                "categorical question {!r} labels must be unique strings".format(question)
+            )
+
+    annotators = ds["annotators"]
+    if (
+        not isinstance(annotators, list)
+        or not annotators
+        or any(not isinstance(annotator, str) or not annotator for annotator in annotators)
+        or len(set(annotators)) != len(annotators)
+    ):
+        _invalid_labels("annotators must be a non-empty array of unique strings")
+    known_annotators = set(annotators)
+
+    cohorts = ds["cohorts"]
+    if not isinstance(cohorts, dict) or not cohorts:
+        _invalid_labels("cohorts must be a non-empty object")
+    for cohort, members in cohorts.items():
+        if (
+            not isinstance(cohort, str)
+            or not cohort
+            or not isinstance(members, list)
+            or not members
+            or any(not isinstance(member, str) or not member for member in members)
+            or len(set(members)) != len(members)
+        ):
+            _invalid_labels(
+                "cohort names must be non-empty strings with unique annotator arrays"
+            )
+        unknown = sorted(set(members) - known_annotators)
+        if unknown:
+            _invalid_labels(
+                "cohort {!r} references unknown annotator(s): {}".format(
+                    cohort, ", ".join(unknown)
+                )
+            )
+
+    items = ds["items"]
+    if not isinstance(items, list) or not items:
+        _invalid_labels("items must be a non-empty array")
+    seen_ids = set()
+    for index, item in enumerate(items):
+        where = "items[{}]".format(index)
+        if not isinstance(item, dict):
+            _invalid_labels(where + " must be an object")
+        item_id = item.get("id")
+        if not isinstance(item_id, str) or not item_id:
+            _invalid_labels(where + ".id must be a non-empty string")
+        if item_id in seen_ids:
+            _invalid_labels("duplicate item id {!r}".format(item_id))
+        seen_ids.add(item_id)
+        labels_by_question = item.get("labels")
+        if not isinstance(labels_by_question, dict):
+            _invalid_labels("item {!r}.labels must be an object".format(item_id))
+        missing_questions = sorted(set(questions) - set(labels_by_question))
+        unknown_questions = sorted(set(labels_by_question) - set(questions))
+        if missing_questions:
+            _invalid_labels(
+                "item {!r} is missing question(s): {}".format(
+                    item_id, ", ".join(missing_questions)
+                )
+            )
+        if unknown_questions:
+            _invalid_labels(
+                "item {!r} has unknown question(s): {}".format(
+                    item_id, ", ".join(unknown_questions)
+                )
+            )
+        for question, votes in labels_by_question.items():
+            if not isinstance(votes, dict) or not votes:
+                _invalid_labels(
+                    "item {!r} question {!r} must have at least one vote".format(
+                        item_id, question
+                    )
+                )
+            unknown = sorted(set(votes) - known_annotators)
+            if unknown:
+                _invalid_labels(
+                    "item {!r} question {!r} references unknown annotator(s): {}".format(
+                        item_id, question, ", ".join(unknown)
+                    )
+                )
+            question_spec = questions[question]
+            for annotator, value in votes.items():
+                if question_spec["type"] == "binary":
+                    if type(value) is not int or value not in (0, 1):
+                        _invalid_labels(
+                            "item {!r} question {!r} annotator {!r} must use 0 or 1".format(
+                                item_id, question, annotator
+                            )
+                        )
+                elif not isinstance(value, str) or value not in question_spec["labels"]:
+                    _invalid_labels(
+                        "item {!r} question {!r} annotator {!r} has unknown label {!r}".format(
+                            item_id, question, annotator, value
+                        )
+                    )
+        reasons = item.get("reasons", {})
+        if not isinstance(reasons, dict):
+            _invalid_labels("item {!r}.reasons must be an object".format(item_id))
+        for question, by_annotator in reasons.items():
+            if question not in questions or not isinstance(by_annotator, dict):
+                _invalid_labels(
+                    "item {!r} has invalid reasons for question {!r}".format(
+                        item_id, question
+                    )
+                )
+            unknown = sorted(set(by_annotator) - known_annotators)
+            if unknown:
+                _invalid_labels(
+                    "item {!r} reasons reference unknown annotator(s): {}".format(
+                        item_id, ", ".join(unknown)
+                    )
+                )
+            if any(not isinstance(reason, str) for reason in by_annotator.values()):
+                _invalid_labels(
+                    "item {!r} reasons for {!r} must be strings".format(
+                        item_id, question
+                    )
+                )
+    return ds
+
+
+def load_dataset(path):
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return validate_dataset(json.load(handle))
+    except (OSError, json.JSONDecodeError) as exc:
+        _invalid_labels(str(exc))
 
 
 # --------------------------------------------------------------------------- #
@@ -182,9 +380,12 @@ def classify(s, votes, rel, cohorts):
 
 
 # --------------------------------------------------------------------------- #
-def main():
-    with open(DATA) as f:
-        ds = json.load(f)
+def main(argv=None):
+    args = _parse_args(argv)
+    data_path = args.data
+    out_dir = os.path.abspath(args.out or os.getcwd())
+    os.makedirs(out_dir, exist_ok=True)
+    ds = load_dataset(data_path)
     items, cohorts, questions = ds["items"], ds["cohorts"], ds["questions"]
 
     struct_by_cell = {(it["id"], q): structure(it, q, it["labels"][q], cohorts)
@@ -249,12 +450,12 @@ def main():
     print("  made by default. Decide it on purpose -- or the aggregation function")
     print("  decides it for you, and ships it into the model as if it were a fact.")
 
-    out = os.path.join(HERE, "triage.json")
+    out = os.path.join(out_dir, "triage.json")
     with open(out, "w") as f:
         json.dump({"reliability": rel,
                    "cells": [{k: v for k, v in c.items() if k != "counts"} for c in cells]},
                   f, indent=2)
-    print(f"\n  machine-readable triage -> {os.path.relpath(out, HERE)}")
+    print(f"\n  machine-readable triage -> {os.path.relpath(out, out_dir)}")
 
 
 if __name__ == "__main__":
