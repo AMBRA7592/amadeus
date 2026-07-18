@@ -14,6 +14,35 @@ to *recover* — only a distribution of human judgement to *preserve* — and th
 disagreement that pipelines are built to delete is usually the most valuable
 signal in the set.
 
+### The bill in 30 seconds
+
+Run `python3 disagreement.py`. On the bundled demo, collapsing every cell to one
+column would erase this:
+
+```text
+==============================================================================
+THE BILL  --  what one 'ground truth' column would have erased
+==============================================================================
+  cells total .............................. 18
+  CONFIDENT  (the collapse is honest) ...... 12
+  CONTESTED  (the collapse destroys signal)  5
+  REVIEW     (route to a human) ............ 1
+  cells with a likely ERROR (real noise) ... 5  <- the few you DO fix
+  VALUE FORKS (cohorts truly diverge) ...... 2  <- governance decisions, not labels
+  MANUFACTURED CONSENSUS (minority silenced)  5
+  disagreement entropy discarded ........... 5.78 bits across the set
+
+  annotator reliability (leave-one-out, CONFIDENT cells only):
+    b4: 0.67  <- below audit line; inspect, do not silently drop
+    b2: 0.92
+    b3: 0.92
+    a1: 1.00
+    a2: 1.00
+    a3: 1.00
+    a4: 1.00
+    b1: 1.00
+```
+
 **The spine.** A label is not ground truth; it is the output of an aggregation
 rule applied to evidence under a task definition — four objects, not one: the
 **distribution** (statistical), the **hard label** (a decision), the
@@ -22,6 +51,30 @@ rule applied to evidence under a task definition — four objects, not one: the
 decision theory, and the rest of the repo is those four objects examined closely:
 the tools produce the distribution and the decision, the four foundations dissect
 why the rule is never neutral, and the schema is the record.
+
+```mermaid
+flowchart LR
+    J["Judgements and reasons<br/>data/labels.json"] --> D["1. Distribution P(Y|X)<br/>triage.json via disagreement.py"]
+    J --> R["3. Aggregation rule<br/>four foundations: Arrow / Parisi / Chichilnisky / information geometry"]
+    D --> H["2. Hard label or action<br/>soft_labels.jsonl via soft_labels.py"]
+    R --> H
+    D --> O["4. Resolution record<br/>resolution_records.jsonl via resolution.py"]
+    H --> O
+    R --> O
+```
+
+### Choose a reading path
+
+- **10 min — the argument:** read [`the-groundless-label.md`](the-groundless-label.md).
+- **+20 min — the proof and payoff:** add
+  [`the-bayes-optimal-label.md`](the-bayes-optimal-label.md), then run
+  `python3 disagreement.py` and inspect the bill above.
+- **Full descent:** continue through
+  [`the-aggregation-theorem.md`](the-aggregation-theorem.md),
+  [`the-frustrated-label.md`](the-frustrated-label.md),
+  [`the-topological-label.md`](the-topological-label.md), and
+  [`the-geometric-label.md`](the-geometric-label.md); then run the operational
+  pipeline and inspect the [resolution-record schema](schema/resolution_record.schema.json).
 
 ### What's here
 

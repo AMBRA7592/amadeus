@@ -212,6 +212,7 @@ class DisagreementClaims(unittest.TestCase):
         cells = triage["cells"]
         contested = [cell for cell in cells if cell["verdict"].startswith("CONTESTED")]
         essay = _essay("the-groundless-label.md")
+        readme = _essay("README.md")
         tokens = [
             "CONFIDENT  (the collapse is honest) ...... {}".format(
                 sum(cell["verdict"] == "CONFIDENT" for cell in cells)
@@ -230,6 +231,41 @@ class DisagreementClaims(unittest.TestCase):
         for token in tokens:
             with self.subTest(token=token):
                 self.assertIn(token, essay)
+
+        readme_tokens = [
+            "cells total .............................. {}".format(len(cells)),
+            "CONFIDENT  (the collapse is honest) ...... {}".format(
+                sum(cell["verdict"] == "CONFIDENT" for cell in cells)
+            ),
+            "CONTESTED  (the collapse destroys signal)  {}".format(len(contested)),
+            "REVIEW     (route to a human) ............ {}".format(
+                sum(cell["verdict"] == "REVIEW" for cell in cells)
+            ),
+            "cells with a likely ERROR (real noise) ... {}".format(
+                sum(
+                    any(dissent["kind"] == "error" for dissent in cell["dissents"])
+                    for cell in cells
+                )
+            ),
+            "VALUE FORKS (cohorts truly diverge) ...... {}".format(
+                sum(cell["value_fork"] for cell in cells)
+            ),
+            "MANUFACTURED CONSENSUS (minority silenced)  {}".format(
+                sum(cell["manufactured_consensus"] for cell in cells)
+            ),
+            "disagreement entropy discarded ........... {:.2f} bits".format(
+                sum(cell["entropy_bits"] for cell in contested)
+            ),
+            "b4: {:.2f}".format(triage["reliability"]["b4"]),
+        ]
+        for token in readme_tokens:
+            with self.subTest(readme_token=token):
+                self.assertIn(token, readme)
+
+        output = _pipeline()["output"]["disagreement.py"]
+        bill_start = output.rfind("=" * 78, 0, output.index("THE BILL"))
+        bill_end = output.index("\n\n" + "=" * 78 + "\nREAD THIS", bill_start)
+        self.assertIn(output[bill_start:bill_end], readme)
 
 
 class BayesClaims(unittest.TestCase):
