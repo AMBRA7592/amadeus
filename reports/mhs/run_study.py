@@ -197,14 +197,30 @@ def _confident_contributions(dataset, triage):
     return contributions
 
 
-def _reliability_values(contributions, annotators):
+def _reliability_by_annotator(contributions, annotators):
     hits, totals = Counter(), Counter()
     for contribution in contributions:
         for annotator, (hit, total) in contribution.items():
             if annotator in annotators:
                 hits[annotator] += hit
                 totals[annotator] += total
-    return [hits[annotator] / totals[annotator] for annotator in annotators if totals[annotator]]
+    return {
+        annotator: hits[annotator] / totals[annotator]
+        for annotator in sorted(annotators)
+        if totals[annotator]
+    }
+
+
+def _reliability_values(contributions, annotators):
+    return list(_reliability_by_annotator(contributions, annotators).values())
+
+
+def _reliability_median_difference(sample, fixed_cohorts):
+    conservative = _reliability_values(sample, fixed_cohorts["Conservative"])
+    liberal = _reliability_values(sample, fixed_cohorts["Liberal"])
+    if not conservative or not liberal:
+        return None
+    return statistics.median(conservative) - statistics.median(liberal)
 
 
 def aggregate_reliability(dataset, triage):
@@ -240,13 +256,10 @@ def aggregate_reliability(dataset, triage):
     interval = None
     if powered:
         fixed = {cohort: set(qualifying[cohort]) for cohort in mhs.COHORTS}
-
-        def statistic(sample):
-            conservative = _reliability_values(sample, fixed["Conservative"])
-            liberal = _reliability_values(sample, fixed["Liberal"])
-            return statistics.median(conservative) - statistics.median(liberal)
-
-        interval = metrics.bootstrap_statistic(contributions, statistic)
+        interval = metrics.bootstrap_statistic(
+            contributions,
+            lambda sample: _reliability_median_difference(sample, fixed),
+        )
     return {
         "status": "descriptive" if powered else "underpowered/non-applicable",
         "minimum_confident_cells": RELIABILITY_MIN_CONFIDENT,
@@ -275,6 +288,13 @@ def _fmt(number):
     return "not applicable" if number is None else "{:.6f}".format(number)
 
 
+def _bootstrap_field(interval, key):
+    if interval is None:
+        return "not applicable"
+    value = interval[key]
+    return "not applicable" if value is None else str(value)
+
+
 def render_report(results, counts, tool_commit):
     primary = results["primary"]
     reliability = results["reliability"]
@@ -300,8 +320,8 @@ Tool commit: `{commit}`
 
 - Value forks: {fork_count}/{fork_total} ({fork_rate:.6f}); Wilson 95% [{fork_lo:.6f}, {fork_hi:.6f}]
 - Manufactured consensus: {manufactured_count}/{manufactured_total} ({manufactured_rate:.6f}); Wilson 95% [{manufactured_lo:.6f}, {manufactured_hi:.6f}]
-- Geometry: {undefined} undefined/disjoint-support items ({undefined_share:.6f}); defined-gap median {gap_median}, Q1 {gap_q1}, Q3 {gap_q3}, IQR {gap_iqr}, item-bootstrap 95% [{gap_boot_lo}, {gap_boot_hi}]
-- Reliability: {reliability_status}; coverage Conservative {conservative_qualifying}/{conservative_eligible}, Liberal {liberal_qualifying}/{liberal_eligible}; Conservative median {conservative_median} (IQR {conservative_iqr}), Liberal median {liberal_median} (IQR {liberal_iqr}); Conservative-minus-Liberal median difference {reliability_difference}, item-bootstrap 95% [{reliability_boot_lo}, {reliability_boot_hi}]
+- Geometry: {undefined} undefined/disjoint-support items ({undefined_share:.6f}); defined-gap median {gap_median}, Q1 {gap_q1}, Q3 {gap_q3}, IQR {gap_iqr}, item-bootstrap 95% [{gap_boot_lo}, {gap_boot_hi}] (status {gap_boot_status}; total draws {gap_boot_iterations}; valid estimates {gap_boot_valid}; degenerate resamples {gap_boot_degenerate})
+- Reliability: {reliability_status}; coverage Conservative {conservative_qualifying}/{conservative_eligible}, Liberal {liberal_qualifying}/{liberal_eligible}; Conservative median {conservative_median} (IQR {conservative_iqr}), Liberal median {liberal_median} (IQR {liberal_iqr}); Conservative-minus-Liberal median difference {reliability_difference}, item-bootstrap 95% [{reliability_boot_lo}, {reliability_boot_hi}] (status {reliability_boot_status}; total draws {reliability_boot_iterations}; valid estimates {reliability_boot_valid}; degenerate resamples {reliability_boot_degenerate})
 
 No source rows or identifiers are published. The source checksum and aggregate
 results are recorded in `manifest.json`. No null-hypothesis p-values are used.
@@ -347,6 +367,30 @@ results are recorded in `manifest.json`. No null-hypothesis p-values are used.
             if geometry_result["defined"]
             else None
         ),
+        gap_boot_status=_bootstrap_field(
+            geometry_result["defined"]["bootstrap_95"]
+            if geometry_result["defined"]
+            else None,
+            "status",
+        ),
+        gap_boot_iterations=_bootstrap_field(
+            geometry_result["defined"]["bootstrap_95"]
+            if geometry_result["defined"]
+            else None,
+            "iterations",
+        ),
+        gap_boot_valid=_bootstrap_field(
+            geometry_result["defined"]["bootstrap_95"]
+            if geometry_result["defined"]
+            else None,
+            "valid_estimates",
+        ),
+        gap_boot_degenerate=_bootstrap_field(
+            geometry_result["defined"]["bootstrap_95"]
+            if geometry_result["defined"]
+            else None,
+            "degenerate_resamples",
+        ),
         reliability_status=reliability["status"],
         conservative_qualifying=reliability["coverage"]["Conservative"]["qualifying"],
         conservative_eligible=reliability["coverage"]["Conservative"]["eligible"],
@@ -384,6 +428,18 @@ results are recorded in `manifest.json`. No null-hypothesis p-values are used.
             reliability["bootstrap_95"]["upper"]
             if reliability["bootstrap_95"]
             else None
+        ),
+        reliability_boot_status=_bootstrap_field(
+            reliability["bootstrap_95"], "status"
+        ),
+        reliability_boot_iterations=_bootstrap_field(
+            reliability["bootstrap_95"], "iterations"
+        ),
+        reliability_boot_valid=_bootstrap_field(
+            reliability["bootstrap_95"], "valid_estimates"
+        ),
+        reliability_boot_degenerate=_bootstrap_field(
+            reliability["bootstrap_95"], "degenerate_resamples"
         ),
     )
 

@@ -17,6 +17,7 @@ import json
 import math
 import random
 import shutil
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -1486,6 +1487,200 @@ class MHSPhaseOneClaims(unittest.TestCase):
                 },
             )
             self.assertIsNone(reliability["bootstrap_95"])
+            underpowered_report = mhs_study.render_report(
+                {"primary": primary_metrics, "reliability": reliability},
+                self.converted["counts"],
+                "synthetic-tool-commit",
+            )
+            self.assertIn(
+                "item-bootstrap 95% [not applicable, not applicable] "
+                "(status not applicable; total draws not applicable; valid "
+                "estimates not applicable; degenerate resamples not applicable)",
+                underpowered_report,
+            )
+
+    def test_powered_reliability_mirror_and_production_bootstrap(self):
+        conservative = ["fake-c-{:02d}".format(index) for index in range(30)]
+        liberal = ["fake-l-{:02d}".format(index) for index in range(30)]
+        annotators = conservative + liberal
+        items = []
+        for index in range(24):
+            items.append(
+                {
+                    "id": "fake-powered-{:02d}".format(index),
+                    "desc": "Synthetic powered reliability cell {}".format(index),
+                    "labels": {
+                        "hatespeech": {annotator: "0" for annotator in annotators}
+                    },
+                    "reasons": {},
+                }
+            )
+
+        for index, annotator in enumerate(conservative[:16]):
+            items[index]["labels"]["hatespeech"][annotator] = "1"
+        for index, annotator in enumerate(liberal[:16]):
+            distinct_cells = ((16 + index) % 24, (8 + index) % 24)
+            self.assertNotEqual(*distinct_cells)
+            for cell in distinct_cells:
+                items[cell]["labels"]["hatespeech"][annotator] = "1"
+
+        self.assertLessEqual(
+            max(
+                sum(label != "0" for label in item["labels"]["hatespeech"].values())
+                for item in items
+            ),
+            3,
+        )
+
+        dataset = {
+            "questions": {
+                "hatespeech": {
+                    "type": "categorical",
+                    "labels": ["0", "1", "2"],
+                }
+            },
+            "annotators": annotators,
+            "cohorts": {
+                "Conservative": conservative,
+                "Liberal": liberal,
+            },
+            "items": items,
+        }
+
+        with tempfile.TemporaryDirectory(prefix="groundless-mhs-powered-") as temp:
+            temp_path = Path(temp)
+            data_path = temp_path / "powered-labels.json"
+            data_path.write_text(
+                json.dumps(dataset, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / "disagreement.py"),
+                    "--data",
+                    str(data_path),
+                    "--out",
+                    str(temp_path / "out"),
+                ],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            triage = _load_json(temp_path / "out" / "triage.json")
+
+        self.assertEqual(len(triage["cells"]), 24)
+        self.assertTrue(all(cell["verdict"] == "CONFIDENT" for cell in triage["cells"]))
+        contributions = mhs_study._confident_contributions(dataset, triage)
+        self.assertEqual(len(contributions), 24)
+        scored_counts = Counter(
+            annotator
+            for contribution in contributions
+            for annotator in contribution
+        )
+        self.assertEqual(set(scored_counts.values()), {24})
+        self.assertEqual(set(scored_counts), set(annotators))
+        mirror = mhs_study._reliability_by_annotator(contributions, annotators)
+        self.assertEqual(mirror, triage["reliability"])
+        self.assertEqual(set(mirror), set(annotators))
+
+        conservative_median = statistics.median(
+            mirror[annotator] for annotator in conservative
+        )
+        liberal_median = statistics.median(mirror[annotator] for annotator in liberal)
+        self.assertEqual(conservative_median, 23 / 24)
+        self.assertEqual(liberal_median, 22 / 24)
+        self.assertAlmostEqual(conservative_median - liberal_median, 1 / 24)
+
+        reliability = mhs_study.aggregate_reliability(dataset, triage)
+        self.assertEqual(reliability["status"], "descriptive")
+        self.assertEqual(
+            reliability["coverage"],
+            {
+                "Conservative": {"eligible": 30, "qualifying": 30},
+                "Liberal": {"eligible": 30, "qualifying": 30},
+            },
+        )
+        self.assertEqual(
+            reliability["summaries"]["Conservative"]["median"], 23 / 24
+        )
+        self.assertEqual(reliability["summaries"]["Liberal"]["median"], 22 / 24)
+        self.assertAlmostEqual(
+            reliability["median_difference_conservative_minus_liberal"], 1 / 24
+        )
+        interval = reliability["bootstrap_95"]
+        self.assertEqual(interval["iterations"], 10000)
+        self.assertEqual(interval["seed"], 20260718)
+        self.assertEqual(interval["valid_estimates"], 10000)
+        self.assertEqual(interval["degenerate_resamples"], 0)
+        self.assertEqual(interval["status"], "ok")
+        self.assertEqual(interval["lower"], 0.0)
+        self.assertAlmostEqual(interval["upper"], 1 / 24)
+
+        primary = mhs_study.aggregate_primary(dataset, triage)
+        report = mhs_study.render_report(
+            {"primary": primary, "reliability": reliability},
+            {
+                "primary_items": 24,
+                "reliability_items": 24,
+                "conservative_annotators": 30,
+                "liberal_annotators": 30,
+            },
+            "synthetic-tool-commit",
+        )
+        self.assertEqual(
+            report.count(
+                "status ok; total draws 10000; valid estimates 10000; "
+                "degenerate resamples 0"
+            ),
+            2,
+        )
+        result_keys = json.dumps(
+            {"primary": primary, "reliability": reliability}, sort_keys=True
+        )
+        self.assertNotIn("p_value", result_keys)
+        self.assertNotIn("pvalue", result_keys)
+
+    def test_degenerate_bootstrap_is_disclosed_without_redraws(self):
+        fixed = {
+            "Conservative": {"fake-c"},
+            "Liberal": {"fake-l"},
+        }
+        contributions = [
+            {"fake-c": (1, 1)},
+            {"fake-l": (1, 1)},
+        ]
+
+        def statistic(sample):
+            return mhs_study._reliability_median_difference(sample, fixed)
+
+        first = mhs_metrics.bootstrap_statistic(
+            contributions, statistic
+        )
+        second = mhs_metrics.bootstrap_statistic(
+            contributions, statistic
+        )
+        self.assertEqual(first, second)
+        self.assertEqual(first["iterations"], 10000)
+        self.assertGreater(first["valid_estimates"], 0)
+        self.assertGreater(first["degenerate_resamples"], 0)
+        self.assertEqual(
+            first["valid_estimates"] + first["degenerate_resamples"], 10000
+        )
+        self.assertIsNone(first["lower"])
+        self.assertIsNone(first["upper"])
+        self.assertEqual(first["status"], "degenerate/non-applicable")
+
+        always = mhs_metrics.bootstrap_statistic(
+            [{"fake-c": (1, 1)}], statistic
+        )
+        self.assertEqual(always["iterations"], 10000)
+        self.assertEqual(always["valid_estimates"], 0)
+        self.assertEqual(always["degenerate_resamples"], 10000)
+        self.assertIsNone(always["lower"])
+        self.assertIsNone(always["upper"])
+        self.assertEqual(always["status"], "degenerate/non-applicable")
 
     def test_frozen_descriptive_statistics(self):
         interval = mhs_metrics.wilson_interval(5, 10)
@@ -1502,6 +1697,9 @@ class MHSPhaseOneClaims(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(first["iterations"], 10000)
         self.assertEqual(first["seed"], 20260718)
+        self.assertEqual(first["valid_estimates"], 10000)
+        self.assertEqual(first["degenerate_resamples"], 0)
+        self.assertEqual(first["status"], "ok")
         self.assertNotIn("p_value", first)
         self.assertNotIn("pvalue", first)
 
