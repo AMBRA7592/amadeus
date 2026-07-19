@@ -76,7 +76,13 @@ def bootstrap_statistic(
     iterations=BOOTSTRAP_ITERATIONS,
     seed=BOOTSTRAP_SEED,
 ):
-    """Item-level percentile-bootstrap interval for an arbitrary statistic."""
+    """Item-level percentile bootstrap with explicit degenerate-draw handling.
+
+    ``iterations`` is always the total number of draws.  A statistic may
+    return ``None`` when it is undefined for a resample.  Such draws are never
+    replaced: any degeneracy makes the interval non-applicable rather than
+    conditioning it on the surviving estimates.
+    """
     observations = list(observations)
     if not observations:
         raise ValueError("observations must not be empty")
@@ -87,15 +93,23 @@ def bootstrap_statistic(
     estimates = []
     for _ in range(iterations):
         sample = [observations[rng.randrange(size)] for _ in range(size)]
-        estimate = float(statistic(sample))
+        estimate = statistic(sample)
+        if estimate is None:
+            continue
+        estimate = float(estimate)
         if not math.isfinite(estimate):
             raise ValueError("bootstrap statistic must be finite")
         estimates.append(estimate)
+    degenerate_resamples = iterations - len(estimates)
+    applicable = degenerate_resamples == 0
     return {
-        "lower": _percentile(estimates, 0.025),
-        "upper": _percentile(estimates, 0.975),
+        "lower": _percentile(estimates, 0.025) if applicable else None,
+        "upper": _percentile(estimates, 0.975) if applicable else None,
         "iterations": iterations,
         "seed": seed,
+        "valid_estimates": len(estimates),
+        "degenerate_resamples": degenerate_resamples,
+        "status": "ok" if applicable else "degenerate/non-applicable",
     }
 
 
