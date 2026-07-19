@@ -1619,15 +1619,44 @@ class MHSPhaseOneClaims(unittest.TestCase):
         self.assertAlmostEqual(interval["upper"], 1 / 24)
 
         primary = mhs_study.aggregate_primary(dataset, triage)
+        results = {"primary": primary, "reliability": reliability}
+        counts = {
+            "primary_items": 24,
+            "reliability_items": 24,
+            "conservative_annotators": 30,
+            "liberal_annotators": 30,
+        }
         report = mhs_study.render_report(
-            {"primary": primary, "reliability": reliability},
-            {
-                "primary_items": 24,
-                "reliability_items": 24,
-                "conservative_annotators": 30,
-                "liberal_annotators": 30,
-            },
+            results,
+            counts,
             "synthetic-tool-commit",
+        )
+        manifest = mhs_study.build_manifest(
+            "synthetic-source-sha256",
+            counts,
+            results,
+            "synthetic-tool-commit",
+            "2026-07-19T00:00:00Z",
+        )
+        self.assertEqual(
+            manifest,
+            {
+                "evidence_tier": "Tier 2",
+                "generated_at": "2026-07-19T00:00:00Z",
+                "source_revision": mhs_study.SOURCE_REVISION,
+                "source_sha256": "synthetic-source-sha256",
+                "protocol": mhs_study.PROTOCOL_PATH,
+                "addendum": mhs_study.ADDENDUM_PATH,
+                "tool_commit": "synthetic-tool-commit",
+                "counts": counts,
+                "metrics": results,
+                "contains_source_rows_or_ids": False,
+            },
+        )
+        self.assertIn("Protocol: `{}`".format(mhs_study.PROTOCOL_PATH), report)
+        self.assertIn(
+            "Reliability addendum: `{}`".format(mhs_study.ADDENDUM_PATH),
+            report,
         )
         self.assertEqual(
             report.count(
@@ -1637,7 +1666,7 @@ class MHSPhaseOneClaims(unittest.TestCase):
             2,
         )
         result_keys = json.dumps(
-            {"primary": primary, "reliability": reliability}, sort_keys=True
+            results, sort_keys=True
         )
         self.assertNotIn("p_value", result_keys)
         self.assertNotIn("pvalue", result_keys)
