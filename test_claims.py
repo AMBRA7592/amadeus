@@ -1411,6 +1411,42 @@ class MHSPhaseOneClaims(unittest.TestCase):
         self.assertEqual(halted["counts"]["primary_items"], 49)
         self.assertIn("below the frozen minimum 50", halted["halt_reason"])
 
+    def test_label_normalizes_only_finite_integral_parquet_floats(self):
+        self.assertIsNone(mhs_adapter._label(None, 1))
+        for value, expected in (
+            (0.0, "0"),
+            (1.0, "1"),
+            (2.0, "2"),
+            (0, "0"),
+            (1, "1"),
+            (2, "2"),
+            ("0", "0"),
+            ("1", "1"),
+            ("2", "2"),
+        ):
+            self.assertEqual(mhs_adapter._label(value, 1), expected)
+
+        for value in (
+            0.5,
+            3.0,
+            -1.0,
+            math.nan,
+            math.inf,
+            -math.inf,
+            True,
+            False,
+            3,
+            -1,
+            "0.0",
+            "3",
+            "-1",
+        ):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(
+                    mhs_adapter.MHSInputError, "one of 0, 1, 2"
+                ):
+                    mhs_adapter._label(value, 1)
+
     def test_synthetic_tool_wiring_and_frozen_metric_results(self):
         with tempfile.TemporaryDirectory(prefix="groundless-mhs-") as temp:
             temp_path = Path(temp)
