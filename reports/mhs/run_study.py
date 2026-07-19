@@ -26,6 +26,7 @@ from reports.mhs import metrics  # noqa: E402
 SOURCE_REVISION = "5468f6e"
 SOURCE_SHA256 = "6819525ce61bc24344df9fc3f7bf48270b31038273cc27c67fc225b51433b0e1"
 PROTOCOL_PATH = "reports/part-3b-dataset-selection-audit.md"
+ADDENDUM_PATH = "reports/part-3b-reliability-corpus-addendum-2026-07-19.md"
 RELIABILITY_MIN_CONFIDENT = 20
 RELIABILITY_MIN_PER_COHORT = 30
 PARQUET_COLUMNS = (
@@ -307,6 +308,7 @@ is not universal or production prevalence, a causal ideology effect, a correct
 ground truth, or variation-versus-error attribution.
 
 Protocol: `{protocol}`<br>
+Reliability addendum: `{addendum}`<br>
 Tool commit: `{commit}`
 
 ## Structural counts
@@ -328,6 +330,7 @@ results are recorded in `manifest.json`. No null-hypothesis p-values are used.
 """.format(
         revision=SOURCE_REVISION,
         protocol=PROTOCOL_PATH,
+        addendum=ADDENDUM_PATH,
         commit=tool_commit,
         primary_items=counts["primary_items"],
         reliability_items=counts["reliability_items"],
@@ -444,6 +447,22 @@ results are recorded in `manifest.json`. No null-hypothesis p-values are used.
     )
 
 
+def build_manifest(source_hash, counts, results, tool_commit, generated_at):
+    """Build the aggregate evidence object without reading source data."""
+    return {
+        "evidence_tier": "Tier 2",
+        "generated_at": generated_at,
+        "source_revision": SOURCE_REVISION,
+        "source_sha256": source_hash,
+        "protocol": PROTOCOL_PATH,
+        "addendum": ADDENDUM_PATH,
+        "tool_commit": tool_commit,
+        "counts": counts,
+        "metrics": results,
+        "contains_source_rows_or_ids": False,
+    }
+
+
 def main(argv=None):
     args = _parse_args(argv)
     source = Path(args.source).resolve()
@@ -468,20 +487,19 @@ def main(argv=None):
         ),
     }
     commit = _tool_commit()
-    manifest = {
-        "evidence_tier": "Tier 2",
-        "generated_at": datetime.datetime.now(datetime.timezone.utc)
+    generated_at = (
+        datetime.datetime.now(datetime.timezone.utc)
         .replace(microsecond=0)
         .isoformat()
-        .replace("+00:00", "Z"),
-        "source_revision": SOURCE_REVISION,
-        "source_sha256": source_hash,
-        "protocol": PROTOCOL_PATH,
-        "tool_commit": commit,
-        "counts": converted["counts"],
-        "metrics": results,
-        "contains_source_rows_or_ids": False,
-    }
+        .replace("+00:00", "Z")
+    )
+    manifest = build_manifest(
+        source_hash,
+        converted["counts"],
+        results,
+        commit,
+        generated_at,
+    )
     report_dir = Path(args.report_dir).resolve()
     report_dir.mkdir(parents=True, exist_ok=True)
     _write_json(report_dir / "manifest.json", manifest)
