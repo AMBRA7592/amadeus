@@ -7,6 +7,7 @@ owns the separately authorized parquet-loading and orchestration boundary.
 """
 
 import json
+import math
 from collections import Counter, OrderedDict
 
 
@@ -68,7 +69,16 @@ def _label(value, index):
         raise MHSInputError(
             "record {} hatespeech must be null or one of 0, 1, 2".format(index)
         )
-    normalized = str(value)
+    if isinstance(value, float):
+        if not math.isfinite(value) or not value.is_integer():
+            raise MHSInputError(
+                "record {} hatespeech must be null or one of 0, 1, 2".format(
+                    index
+                )
+            )
+        normalized = str(int(value))
+    else:
+        normalized = str(value)
     if normalized not in LABELS:
         raise MHSInputError(
             "record {} hatespeech must be null or one of 0, 1, 2".format(index)
