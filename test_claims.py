@@ -1683,6 +1683,9 @@ class MHSPhaseOneClaims(unittest.TestCase):
                 "source_sha256": "synthetic-source-sha256",
                 "protocol": mhs_study.PROTOCOL_PATH,
                 "addendum": mhs_study.ADDENDUM_PATH,
+                "primary_count_addendum": (
+                    mhs_study.PRIMARY_COUNT_ADDENDUM_PATH
+                ),
                 "tool_commit": "synthetic-tool-commit",
                 "counts": counts,
                 "metrics": results,
@@ -1692,6 +1695,12 @@ class MHSPhaseOneClaims(unittest.TestCase):
         self.assertIn("Protocol: `{}`".format(mhs_study.PROTOCOL_PATH), report)
         self.assertIn(
             "Reliability addendum: `{}`".format(mhs_study.ADDENDUM_PATH),
+            report,
+        )
+        self.assertIn(
+            "Primary-count addendum: `{}`".format(
+                mhs_study.PRIMARY_COUNT_ADDENDUM_PATH
+            ),
             report,
         )
         self.assertEqual(
