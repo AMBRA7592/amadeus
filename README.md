@@ -169,6 +169,12 @@ non-neutral rule — not that they are frequent in your data. That last question
 empirical, and this repo ships the instruments to measure it (the disagreement
 bill, the frustration index, the geometry gap) rather than the measurement.
 
+A [bounded Tier-2 MHS pilot](reports/mhs/report.md) applies those instruments to
+one pinned dataset revision and one prospectively frozen cohort contrast. It is
+reproducible by re-download, but remains dataset-specific external evidence—not
+an estimate of universal or production prevalence—and publishes no source rows
+or identifiers.
+
 ### The one thing to take away
 
 So the honest deliverable of high-stakes labeling is not a label. It is the
