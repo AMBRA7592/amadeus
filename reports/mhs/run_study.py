@@ -27,6 +27,9 @@ SOURCE_REVISION = "5468f6e"
 SOURCE_SHA256 = "6819525ce61bc24344df9fc3f7bf48270b31038273cc27c67fc225b51433b0e1"
 PROTOCOL_PATH = "reports/part-3b-dataset-selection-audit.md"
 ADDENDUM_PATH = "reports/part-3b-reliability-corpus-addendum-2026-07-19.md"
+PRIMARY_COUNT_ADDENDUM_PATH = (
+    "reports/part-3b-primary-count-correction-addendum-2026-07-20.md"
+)
 RELIABILITY_MIN_CONFIDENT = 20
 RELIABILITY_MIN_PER_COHORT = 30
 PARQUET_COLUMNS = (
@@ -309,6 +312,7 @@ ground truth, or variation-versus-error attribution.
 
 Protocol: `{protocol}`<br>
 Reliability addendum: `{addendum}`<br>
+Primary-count addendum: `{primary_count_addendum}`<br>
 Tool commit: `{commit}`
 
 ## Structural counts
@@ -331,6 +335,7 @@ results are recorded in `manifest.json`. No null-hypothesis p-values are used.
         revision=SOURCE_REVISION,
         protocol=PROTOCOL_PATH,
         addendum=ADDENDUM_PATH,
+        primary_count_addendum=PRIMARY_COUNT_ADDENDUM_PATH,
         commit=tool_commit,
         primary_items=counts["primary_items"],
         reliability_items=counts["reliability_items"],
@@ -456,6 +461,7 @@ def build_manifest(source_hash, counts, results, tool_commit, generated_at):
         "source_sha256": source_hash,
         "protocol": PROTOCOL_PATH,
         "addendum": ADDENDUM_PATH,
+        "primary_count_addendum": PRIMARY_COUNT_ADDENDUM_PATH,
         "tool_commit": tool_commit,
         "counts": counts,
         "metrics": results,
