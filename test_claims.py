@@ -1703,6 +1703,15 @@ class MHSPhaseOneClaims(unittest.TestCase):
             ),
             report,
         )
+        mathematical_nonclaim = (
+            "Nor does this single-dataset pilot constitute validation of the "
+            "repository's mathematical treatments."
+        )
+        self.assertIn(mathematical_nonclaim, " ".join(report.split()))
+        committed_report = (ROOT / "reports" / "mhs" / "report.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(mathematical_nonclaim, " ".join(committed_report.split()))
         self.assertEqual(
             report.count(
                 "status ok; total draws 10000; valid estimates 10000; "

@@ -308,7 +308,8 @@ def render_report(results, counts, tool_commit):
 **Evidence boundary:** dataset-specific, topology-qualified descriptive results
 for MHS revision `{revision}` and the frozen Conservative/Liberal contrast. This
 is not universal or production prevalence, a causal ideology effect, a correct
-ground truth, or variation-versus-error attribution.
+ground truth, or variation-versus-error attribution. Nor does this single-dataset
+pilot constitute validation of the repository's mathematical treatments.
 
 Protocol: `{protocol}`<br>
 Reliability addendum: `{addendum}`<br>

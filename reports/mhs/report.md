@@ -3,7 +3,8 @@
 **Evidence boundary:** dataset-specific, topology-qualified descriptive results
 for MHS revision `5468f6e` and the frozen Conservative/Liberal contrast. This
 is not universal or production prevalence, a causal ideology effect, a correct
-ground truth, or variation-versus-error attribution.
+ground truth, or variation-versus-error attribution. Nor does this single-dataset
+pilot constitute validation of the repository's mathematical treatments.
 
 Protocol: `reports/part-3b-dataset-selection-audit.md`<br>
 Reliability addendum: `reports/part-3b-reliability-corpus-addendum-2026-07-19.md`<br>
