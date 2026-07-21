@@ -44,4 +44,6 @@ author.
 ## Citation and license
 
 Repository citation metadata is maintained in [`CITATION.cff`](CITATION.cff).
-The code is currently released under the MIT license (`LICENSE`).
+The code and operational content are released under the MIT license (`LICENSE`);
+the six essays are released under CC BY 4.0 (`LICENSE-CC-BY-4.0.txt`). See
+[`LICENSING.md`](LICENSING.md).

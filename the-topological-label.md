@@ -211,3 +211,7 @@ cloud — because the cloud is not your failure to find the ground. The cloud
   curl-free).
 - D. G. Saari, *Geometry of Voting*, 1994 (the geometric reading of Arrow and the
   Condorcet paradox).
+
+---
+
+*© 2026 Amadeus Brandes. Licensed under [CC BY 4.0](LICENSE-CC-BY-4.0.txt).*

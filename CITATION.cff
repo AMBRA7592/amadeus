@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If you use this work, please cite it as below."
+message: "If you use this work, please cite it as below. Code and operational content are MIT-licensed; the six essays are CC BY 4.0. See LICENSING.md."
 title: "Ground Truth Has No Ground: treating the label as a distribution in AI data labeling"
 abstract: >-
   An argument and a runnable toolchain for AI data labeling. For contested,
