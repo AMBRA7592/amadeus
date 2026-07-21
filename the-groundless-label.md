@@ -325,3 +325,4 @@ certainty. That seam is where the values get written. Write them on purpose.
 ---
 
 *On authorship, method, and what "verified" means here, see the [colophon](COLOPHON.md).*
+*© 2026 Amadeus Brandes. Licensed under [CC BY 4.0](LICENSE-CC-BY-4.0.txt).*

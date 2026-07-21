@@ -199,3 +199,7 @@ cost matrix, exactly where the regime ends.
   estimates when annotators are not exchangeable; Theorem 4's caveat).
 - A. Gelman, J. Carlin, H. Stern, D. Dunson, A. Vehtari, D. Rubin, *Bayesian Data
   Analysis*, 3rd ed., 2013 (the Dirichlet–multinomial posterior; Theorem 6).
+
+---
+
+*© 2026 Amadeus Brandes. Licensed under [CC BY 4.0](LICENSE-CC-BY-4.0.txt).*

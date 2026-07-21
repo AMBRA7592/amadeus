@@ -191,3 +191,7 @@ honesty the rest of this repository was ever asking for.
 - R. Bhattacharya & V. Patrangenaru, *Large Sample Theory of Intrinsic and
   Extrinsic Sample Means on Manifolds*, Annals of Statistics, 2003 (Fréchet means
   and when they are unique).
+
+---
+
+*© 2026 Amadeus Brandes. Licensed under [CC BY 4.0](LICENSE-CC-BY-4.0.txt).*

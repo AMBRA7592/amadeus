@@ -263,3 +263,7 @@ vote would land. It was one layer down, in the distribution. **Keep the cloud.**
 - L. Ge, D. Halpern, E. Micha, A. D. Procaccia, et al., *Axioms for AI Alignment
   from Human Feedback*, NeurIPS 2024 (social-choice axioms carried directly into
   RLHF reward learning).
+
+---
+
+*© 2026 Amadeus Brandes. Licensed under [CC BY 4.0](LICENSE-CC-BY-4.0.txt).*

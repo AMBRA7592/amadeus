@@ -222,3 +222,7 @@ temperature up. Keep the grid on the wall. **Keep the cloud.**
   graphs, balance, and the frustration index that detects coherent blocs).
 - I. Shumailov et al., *AI models collapse when trained on recursively generated
   data*, Nature, 2024 (model collapse — here, the second law applied to values).
+
+---
+
+*© 2026 Amadeus Brandes. Licensed under [CC BY 4.0](LICENSE-CC-BY-4.0.txt).*

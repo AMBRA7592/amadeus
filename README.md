@@ -187,3 +187,4 @@ aggregation act looks like when it is written down on purpose, replayable and ow
 ---
 
 *Authorship, method, and verification: see the [colophon](COLOPHON.md).*
+*Licensing: code and operational content under MIT; the six essays under CC BY 4.0 — see [`LICENSING.md`](LICENSING.md).*
