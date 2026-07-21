@@ -183,3 +183,7 @@ genuine value forks, a named human who owns the call.
 
 That record has a shape: [`schema/resolution_record.schema.json`](schema/resolution_record.schema.json) — what an
 aggregation act looks like when it is written down on purpose, replayable and owned.
+
+---
+
+*Authorship, method, and verification: see the [colophon](COLOPHON.md).*

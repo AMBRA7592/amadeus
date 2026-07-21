@@ -321,3 +321,7 @@ certainty. That seam is where the values get written. Write them on purpose.
   Reproducible Testbed for Pluralistic Alignment*, 2024 (arXiv:2407.17387).
 - I. Shumailov et al., *AI models collapse when trained on recursively generated
   data*, Nature, 2024.
+
+---
+
+*On authorship, method, and what "verified" means here, see the [colophon](COLOPHON.md).*
