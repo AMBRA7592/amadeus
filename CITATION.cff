@@ -23,6 +23,14 @@ repository-code: "https://github.com/releasecontrol/groundless-truth"
 license: MIT
 version: "1.4.0"
 date-released: "2026-07-21"
+doi: "10.5281/zenodo.21520646"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.21520646"
+    description: "The version DOI for version 1.4.0 of this work."
+  - type: doi
+    value: "10.5281/zenodo.21520645"
+    description: "The concept DOI for all archived versions of this work."
 keywords:
   - data labeling
   - annotation
