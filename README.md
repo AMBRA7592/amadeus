@@ -1,6 +1,7 @@
 # Ground truth has no ground
 
 [![proofs](https://github.com/releasecontrol/groundless-truth/actions/workflows/ci.yml/badge.svg)](https://github.com/releasecontrol/groundless-truth/actions/workflows/ci.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21520645.svg)](https://doi.org/10.5281/zenodo.21520645)
 
 > **Majority vote is not a neutral way to combine human judgement. It is a
 > specific, contestable rule that silently makes governance decisions and ships
